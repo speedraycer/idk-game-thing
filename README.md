@@ -25,6 +25,14 @@ Two big buttons:
 Everything it says is silly and friendly — snacks, pizzas, and potatoes.
 **Nothing scary, no threats, nothing mean.**
 
+The jokes are **shuffled every time**, so it's never the exact same speech twice.
+
+### 👤 Type their name (new!)
+There's a **name box** at the top. Type your cousin's name (like *Jake*) and the
+hacker will actually say **their name** in some of the jokes — *"Nice haircut,
+Jake. Did a raccoon do it?"* or *"Jake, I ate all your snacks!"* Leave it blank
+and it just calls them "silly goose." 😄
+
 ### 🎚️ Change the voice
 At the top of the buttons you can pick how the hacker sounds:
 
