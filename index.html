@@ -64,6 +64,8 @@
     text-shadow: 0 0 5px var(--g); -webkit-appearance: none; appearance: none;
   }
   #charrow { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  #skinrow { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  #skinrow button.op.sm { font-size: 12px; padding: 10px 2px; }
   #victim, #customsay {
     width: 100%; background: #000; border: 1px solid var(--g); color: var(--g);
     font-family: inherit; font-size: 14px; padding: 12px; border-radius: 6px;
@@ -95,6 +97,13 @@
   <div id="term"></div>
 
   <div id="pad">
+    <div class="divider">🎨 CHANGE THE LOOK</div>
+    <div id="skinrow">
+      <button class="op sm active" data-skin="green">🟢 GREEN</button>
+      <button class="op sm" data-skin="red">🔴 RED</button>
+      <button class="op sm" data-skin="blue">🔵 BLUE</button>
+      <button class="op sm" data-skin="purple">🟣 PURPLE</button>
+    </div>
     <input id="victim" type="text" placeholder="👤 type their name (like your cousin!)" autocomplete="off" spellcheck="false">
     <div id="charrow">
       <button class="op sm active" data-char="robot">🤖 ROBOT</button>
@@ -140,6 +149,22 @@
   function buzz(ms) { if (navigator.vibrate) { try { navigator.vibrate(ms); } catch (e) {} } }
   function rnd(n) { return Math.floor(Math.random() * n); }
   function pick(a) { return a[rnd(a.length)]; }
+
+  /* ---------- looks / skins (recolor the whole app) ---------- */
+  var SKINS = {
+    green:  { g: "#00ff41", gd: "#0a4018", r: "#ff2222" },
+    red:    { g: "#ff3b3b", gd: "#401010", r: "#ffcc00" },
+    blue:   { g: "#28c8ff", gd: "#0a2e40", r: "#ff6161" },
+    purple: { g: "#c04bff", gd: "#2a0a40", r: "#ff4bd0" }
+  };
+  var rainColor = "#00ff41";
+  function applySkin(k) {
+    var s = SKINS[k] || SKINS.green;
+    var root = document.documentElement.style;
+    root.setProperty("--g", s.g); root.setProperty("--gd", s.gd); root.setProperty("--r", s.r);
+    rainColor = s.g;
+    var meta = document.querySelector('meta[name="theme-color"]'); if (meta) meta.setAttribute("content", "#000000");
+  }
 
   /* ---------- creepy VOICE (Web Speech / phone's built-in text-to-speech) ---------- */
   var synth = window.speechSynthesis || null;
@@ -372,16 +397,17 @@
     var el = document.getElementById("customsay");
     var txt = el ? el.value.trim() : "";
     if (!txt) { line(""); line("> type a message in the box first! ✍️", "warn"); line(""); return; }
-    if (busy) return;
-    busy = true; pad.style.opacity = ".5"; pad.style.pointerEvents = "none";
+    // interrupt whatever is happening so this ALWAYS works, even mid-speech
+    live = false; if (liveTimer) clearTimeout(liveTimer);
+    var nb = pad.querySelector('button[data-voice="nonstop"]');
+    if (nb) { nb.textContent = "🔴 NON-STOP MODE — keeps talking"; nb.classList.remove("live"); }
     stopSpeak();
+    busy = false; pad.style.opacity = "1"; pad.style.pointerEvents = "auto";
     line("");
     line('  "' + fill(txt) + '"', "bad");
     buzz(30); beep(120, 0.06, "sawtooth", 0.05);
-    say(txt).then(function () {
-      line("> ...said it.", "ok"); line("");
-      busy = false; pad.style.opacity = "1"; pad.style.pointerEvents = "auto";
-    });
+    say(txt);
+    line("> ...said it.", "ok"); line("");
   }
 
   var live = false, liveTimer = null;
@@ -417,6 +443,14 @@
     if (!b) return;
     // these run inside the real tap so phones allow the voice to play
     audio(); unlockSpeech(); buzz(25);
+    var sk = b.getAttribute("data-skin");
+    if (sk) {
+      applySkin(sk);
+      var sbtns = pad.querySelectorAll("button[data-skin]");
+      for (var j = 0; j < sbtns.length; j++) sbtns[j].classList.remove("active");
+      b.classList.add("active");
+      return;
+    }
     var ch = b.getAttribute("data-char");
     if (ch) {
       applyChar(ch);
@@ -440,6 +474,16 @@
     if (v) { chosenVoice = v; sample(); }
   });
 
+  // press Return/Go on the keyboard to make it say your typed message
+  var customInput = document.getElementById("customsay");
+  if (customInput) customInput.addEventListener("keydown", function (e) {
+    if (e.key === "Enter" || e.keyCode === 13) {
+      e.preventDefault(); customInput.blur();
+      audio(); unlockSpeech(); buzz(25);
+      customTalk();
+    }
+  });
+
   /* ---------- clock ---------- */
   setInterval(function () {
     var d = new Date();
@@ -459,7 +503,7 @@
   window.addEventListener("resize", resize); resize();
   function rain() {
     cx.fillStyle = "rgba(0,0,0,0.08)"; cx.fillRect(0, 0, cv.width, cv.height);
-    cx.fillStyle = "#00ff41"; cx.font = fs + "px monospace";
+    cx.fillStyle = rainColor; cx.font = fs + "px monospace";
     for (var i = 0; i < drops.length; i++) {
       cx.fillText(chars[rnd(chars.length)], i * fs, drops[i] * fs);
       if (drops[i] * fs > cv.height && Math.random() > 0.975) drops[i] = 0;
