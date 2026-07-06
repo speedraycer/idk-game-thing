@@ -64,6 +64,13 @@
     text-shadow: 0 0 5px var(--g); -webkit-appearance: none; appearance: none;
   }
   #charrow { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  #victim, #customsay {
+    width: 100%; background: #000; border: 1px solid var(--g); color: var(--g);
+    font-family: inherit; font-size: 14px; padding: 12px; border-radius: 6px;
+    text-align: center; text-shadow: 0 0 5px var(--g);
+  }
+  #victim::placeholder, #customsay::placeholder { color: var(--gd); }
+  .divider { text-align: center; color: var(--gd); font-size: 11px; letter-spacing: 1px; margin: 2px 0; }
   button.op.sm { padding: 11px 4px; font-size: 13px; }
   button.op.sm.active { background: rgba(0,255,65,.32); box-shadow: 0 0 14px rgba(0,255,65,.55) inset; }
   #voicehint { font-size: 11px; color: var(--gd); text-align: center; margin: -2px 0 2px; }
@@ -88,6 +95,7 @@
   <div id="term"></div>
 
   <div id="pad">
+    <input id="victim" type="text" placeholder="👤 type their name (like your cousin!)" autocomplete="off" spellcheck="false">
     <div id="charrow">
       <button class="op sm active" data-char="robot">🤖 ROBOT</button>
       <button class="op sm" data-char="monster">👹 MONSTER</button>
@@ -96,8 +104,14 @@
     </div>
     <select id="voicesel"><option>loading voices…</option></select>
     <div id="voicehint">tap a character voice — each sounds different 🔊 (or pick your own from the menu)</div>
+
+    <div class="divider">— 1) LET THE HACKER TALK BY ITSELF —</div>
     <button class="op" data-voice="talk">🎙️ HACKER VOICE — talk to them</button>
     <button class="op danger" data-voice="nonstop">🔴 NON-STOP MODE — keeps talking</button>
+
+    <div class="divider">— 2) OR TYPE YOUR OWN MESSAGE —</div>
+    <input id="customsay" type="text" placeholder="✍️ type anything and it will say it..." autocomplete="off" spellcheck="false">
+    <button class="op" data-voice="custom">🗣️ MAKE IT SAY THIS</button>
   </div>
 </div>
 
@@ -283,11 +297,11 @@
 
   /* ================= TALKING FEATURES ================= */
 
-  // ~100-word "I am a hacker" monologue — SILLY and goofy, not scary
-  var MONOLOGUE = [
-    "I am a hacker.",
+  // Big pool of SILLY lines. {name} gets swapped for the name you typed (or a
+  // goofy default). Shuffled every time so it is never the exact same speech.
+  var POOL = [
     "A super duper silly hacker.",
-    "I have broken into this phone to steal all your snacks.",
+    "I have broken into this phone to steal all the snacks.",
     "I can see your screen right now. It is very smudgy. Please clean it.",
     "I hacked the camera. Wow. Nice face. Ten out of ten.",
     "I looked at your photos. Too many blurry ones. Do better.",
@@ -297,28 +311,36 @@
     "I am the boss of this phone now. My first rule is more naps.",
     "I ordered nine hundred pizzas to your fridge.",
     "I am a genius hacker. Also, I am a little hungry.",
-    "Beep boop. Hacking complete. That will be one cookie, please.",
-    "Ha ha ha ha ha.",
-    "You have been pranked."
-  ];
-
-  // short SILLY one-liners for NON-STOP MODE (goofy, not scary)
-  var LINES = [
-    "I am still in your phone. Just chilling.",
-    "I read your texts. You spell definitely wrong every single time.",
-    "I can see you through the camera. Wave hi. Hiiii.",
-    "I hacked your alarm. It now says wakey wakey, silly goose.",
-    "I turned the brightness up so I can see the snacks better.",
-    "I put all your selfies into one big goofy album.",
-    "Beep boop. I am a very professional hacker. And also a clown.",
     "I renamed your wifi to Hacked By A Potato.",
     "I put googly eyes on all your apps.",
     "I know your password. It is probably password. Classic.",
     "Every phone in this house owes me a taco.",
+    "I hacked your alarm. It now says wakey wakey, silly goose.",
+    "I turned the brightness up so I can see the snacks better.",
+    "I put all your selfies into one big goofy album.",
+    "Beep boop. I am a very professional hacker. And also a clown.",
     "I am closer than you think. I am in your pocket. It is cozy in here.",
-    "Ha! Pranked again. I am the silliest hacker alive.",
-    "My hacking is done. Now I will go take a nap."
+    "I taught your phone how to burp. You are welcome.",
+    "I filled your notes app with pictures of spaghetti.",
+    "I set your keyboard to only type the word banana.",
+    "I hid a tiny robot inside your charger. His name is Kevin.",
+    "I gave your phone a mustache. It looks very fancy now.",
+    "I read your texts. You spell definitely wrong every single time.",
+    // lines that use the name you type:
+    "{name}, I ate all your snacks. Every single one.",
+    "Nice haircut, {name}. Did a raccoon do it?",
+    "{name}, your password is way too easy. Try harder.",
+    "Hello {name}. Yes, I can see you. Wave hello.",
+    "{name}, I put glitter in your phone. Good luck cleaning that up.",
+    "I am watching you, {name}. Mostly because you are very funny.",
+    "{name}, this phone belongs to me now. I will take good care of it.",
+    "Hey {name}, I turned all your apps upside down. Enjoy."
   ];
+
+  // whose name to use (typed in the box, or a silly default)
+  function who() { var el = document.getElementById("victim"); var v = el ? el.value.trim() : ""; return v || "silly goose"; }
+  function fill(s) { return String(s).replace(/\{name\}/g, who()); }
+  function shuffle(a) { a = a.slice(); for (var i = a.length - 1; i > 0; i--) { var j = rnd(i + 1); var t = a[i]; a[i] = a[j]; a[j] = t; } return a; }
 
   // HACKER VOICE: speak the whole monologue. First line fires immediately on the
   // tap (so mobile allows it); the rest chain on each line finishing.
@@ -328,14 +350,16 @@
     stopSpeak();
     line("");
     line("> voice online. listen carefully...", "cmd");
+    // built fresh each time: greeting + random jokes + ending -> never the same
+    var seq = ["I am a hacker."].concat(shuffle(POOL).slice(0, 9)).concat(["Beep boop. You have been pranked."]);
     var i = 0;
     (function next() {
-      if (i >= MONOLOGUE.length) {
+      if (i >= seq.length) {
         line("> ...transmission ended.", "ok"); line("");
         busy = false; pad.style.opacity = "1"; pad.style.pointerEvents = "auto";
         return;
       }
-      var s = MONOLOGUE[i++];
+      var s = fill(seq[i++]);
       line('  "' + s + '"', "bad");
       buzz(30); beep(120, 0.06, "sawtooth", 0.05);
       say(s).then(function () { setTimeout(next, 160); });
@@ -343,6 +367,23 @@
   }
 
   // NON-STOP MODE: keeps speaking random lines with a short gap, until toggled off.
+  // TYPE-YOUR-OWN: speak exactly what the user typed in the box
+  function customTalk() {
+    var el = document.getElementById("customsay");
+    var txt = el ? el.value.trim() : "";
+    if (!txt) { line(""); line("> type a message in the box first! ✍️", "warn"); line(""); return; }
+    if (busy) return;
+    busy = true; pad.style.opacity = ".5"; pad.style.pointerEvents = "none";
+    stopSpeak();
+    line("");
+    line('  "' + fill(txt) + '"', "bad");
+    buzz(30); beep(120, 0.06, "sawtooth", 0.05);
+    say(txt).then(function () {
+      line("> ...said it.", "ok"); line("");
+      busy = false; pad.style.opacity = "1"; pad.style.pointerEvents = "auto";
+    });
+  }
+
   var live = false, liveTimer = null;
   function startLive(btn) {
     live = true;
@@ -353,7 +394,7 @@
     line("> NON-STOP MODE ON. the hacker will keep talking. tap to stop.", "bad");
     (function loop() {
       if (!live) return;
-      var s = pick(LINES);
+      var s = fill(pick(POOL));
       line('  "' + s + '"', "bad");
       buzz(30); beep(120, 0.06, "sawtooth", 0.05);
       say(s).then(function () {
@@ -388,6 +429,7 @@
     var vc = b.getAttribute("data-voice");
     if (vc === "talk") { talk(); }
     else if (vc === "nonstop") { live ? stopLive(b) : startLive(b); }
+    else if (vc === "custom") { customTalk(); }
   });
 
   // change the voice from the dropdown (plays a sample so you can hear it)

@@ -25,6 +25,23 @@ Two big buttons:
 Everything it says is silly and friendly — snacks, pizzas, and potatoes.
 **Nothing scary, no threats, nothing mean.**
 
+The jokes are **shuffled every time**, so it's never the exact same speech twice.
+
+### 👤 Type their name (new!)
+There's a **name box** at the top. Type your cousin's name (like *Jake*) and the
+hacker will actually say **their name** in some of the jokes — *"Nice haircut,
+Jake. Did a raccoon do it?"* or *"Jake, I ate all your snacks!"* Leave it blank
+and it just calls them "silly goose." 😄
+
+### ✍️ Type your own message (new!)
+You can pick **two ways** to make the hacker talk:
+
+1. **Let it talk by itself** — tap 🎙️ HACKER VOICE or 🔴 NON-STOP MODE and it
+   makes up the silly lines.
+2. **Type your own** — type anything into the *"type anything and it will say
+   it"* box and tap **🗣️ MAKE IT SAY THIS**, and the hacker voice reads *your*
+   words out loud in whatever character voice you picked.
+
 ### 🎚️ Change the voice
 At the top of the buttons you can pick how the hacker sounds:
 
