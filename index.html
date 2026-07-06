@@ -129,7 +129,6 @@
   "use strict";
   var term = document.getElementById("term");
   var pad = document.getElementById("pad");
-  var busy = false;
 
   /* ---------- sound (Web Audio, no files needed) ---------- */
   var AC = window.AudioContext || window.webkitAudioContext;
@@ -367,27 +366,36 @@
   function fill(s) { return String(s).replace(/\{name\}/g, who()); }
   function shuffle(a) { a = a.slice(); for (var i = a.length - 1; i > 0; i--) { var j = rnd(i + 1); var t = a[i]; a[i] = a[j]; a[j] = t; } return a; }
 
+  // Every action bumps this "generation". A running talk/non-stop stops itself
+  // as soon as the generation changes, so the buttons are NEVER locked — a new
+  // tap just interrupts the old one.
+  var gen = 0;
+  function stopAll() {
+    gen++;
+    live = false;
+    if (liveTimer) { clearTimeout(liveTimer); liveTimer = null; }
+    stopSpeak();
+    var nb = pad.querySelector('button[data-voice="nonstop"]');
+    if (nb) { nb.textContent = "🔴 NON-STOP MODE — keeps talking"; nb.classList.remove("live"); }
+  }
+
   // HACKER VOICE: speak the whole monologue. First line fires immediately on the
   // tap (so mobile allows it); the rest chain on each line finishing.
   function talk() {
-    if (busy) return;
-    busy = true; pad.style.opacity = ".5"; pad.style.pointerEvents = "none";
-    stopSpeak();
+    stopAll();
+    var myGen = gen;
     line("");
     line("> voice online. listen carefully...", "cmd");
     // built fresh each time: greeting + random jokes + ending -> never the same
     var seq = ["I am a hacker."].concat(shuffle(POOL).slice(0, 9)).concat(["Beep boop. You have been pranked."]);
     var i = 0;
     (function next() {
-      if (i >= seq.length) {
-        line("> ...transmission ended.", "ok"); line("");
-        busy = false; pad.style.opacity = "1"; pad.style.pointerEvents = "auto";
-        return;
-      }
+      if (myGen !== gen) return;               // another button was tapped -> stop
+      if (i >= seq.length) { line("> ...transmission ended.", "ok"); line(""); return; }
       var s = fill(seq[i++]);
       line('  "' + s + '"', "bad");
       buzz(30); beep(120, 0.06, "sawtooth", 0.05);
-      say(s).then(function () { setTimeout(next, 160); });
+      say(s).then(function () { if (myGen === gen) setTimeout(next, 160); });
     })();
   }
 
@@ -397,12 +405,7 @@
     var el = document.getElementById("customsay");
     var txt = el ? el.value.trim() : "";
     if (!txt) { line(""); line("> type a message in the box first! ✍️", "warn"); line(""); return; }
-    // interrupt whatever is happening so this ALWAYS works, even mid-speech
-    live = false; if (liveTimer) clearTimeout(liveTimer);
-    var nb = pad.querySelector('button[data-voice="nonstop"]');
-    if (nb) { nb.textContent = "🔴 NON-STOP MODE — keeps talking"; nb.classList.remove("live"); }
-    stopSpeak();
-    busy = false; pad.style.opacity = "1"; pad.style.pointerEvents = "auto";
+    stopAll();   // interrupt anything so this ALWAYS works, even mid-speech
     line("");
     line('  "' + fill(txt) + '"', "bad");
     buzz(30); beep(120, 0.06, "sawtooth", 0.05);
@@ -412,29 +415,25 @@
 
   var live = false, liveTimer = null;
   function startLive(btn) {
-    live = true;
+    stopAll();
+    live = true; var myGen = gen;
     btn.textContent = "🛑 STOP TALKING";
     btn.classList.add("live");
-    stopSpeak();
     line("");
     line("> NON-STOP MODE ON. the hacker will keep talking. tap to stop.", "bad");
     (function loop() {
-      if (!live) return;
+      if (!live || myGen !== gen) return;
       var s = fill(pick(POOL));
       line('  "' + s + '"', "bad");
       buzz(30); beep(120, 0.06, "sawtooth", 0.05);
       say(s).then(function () {
-        if (!live) return;
+        if (!live || myGen !== gen) return;
         liveTimer = setTimeout(loop, 2500 + rnd(4000)); // short gap, then next line
       });
     })();
   }
-  function stopLive(btn) {
-    live = false;
-    if (liveTimer) clearTimeout(liveTimer);
-    stopSpeak();
-    btn.textContent = "🔴 NON-STOP MODE — keeps talking";
-    btn.classList.remove("live");
+  function stopLive() {
+    stopAll();
     line("> the hacker goes quiet... for now.", "ok"); line("");
   }
 
