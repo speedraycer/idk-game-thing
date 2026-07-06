@@ -242,6 +242,8 @@
     if (unlocked || !synth) return;
     try { var u = new SpeechSynthesisUtterance(" "); u.volume = 0; synth.speak(u); } catch (e) {}
     unlocked = true;
+    // iOS often only fills the voice list AFTER the first speech — reload a few times
+    setTimeout(loadVoices, 250); setTimeout(loadVoices, 900); setTimeout(loadVoices, 2000);
   }
 
   // speak one line in a slow, deep, creepy voice; resolves when it finishes
@@ -456,6 +458,7 @@
       var cbtns = pad.querySelectorAll("button[data-char]");
       for (var i = 0; i < cbtns.length; i++) cbtns[i].classList.remove("active");
       b.classList.add("active");
+      line("> voice changed to " + b.textContent.trim() + " — listen!", "ok");
       sample();
       return;
     }
@@ -533,7 +536,8 @@
 
   // boot on first tap so audio + voice are allowed to play
   var started = false;
-  function boot() { if (started) return; started = true; audio(); unlockSpeech(); intro(); }
+  function boot() { if (started) return; started = true; audio(); unlockSpeech(); intro();
+    setTimeout(loadVoices, 400); setTimeout(loadVoices, 1500); setTimeout(loadVoices, 3000); }
   document.addEventListener("touchstart", boot, { once: true });
   document.addEventListener("click", boot, { once: true });
   setTimeout(function () { if (!started) { started = true; intro(); } }, 1200);
