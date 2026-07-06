@@ -28,12 +28,18 @@ Everything it says is silly and friendly — snacks, pizzas, and potatoes.
 ### 🎚️ Change the voice
 At the top of the buttons you can pick how the hacker sounds:
 
-- **Voice dropdown** — lists every voice your phone has. Pick one and it plays a
-  sample right away. (Different phones have different voices — try a few!)
-- **🔊 DEEP / 😐 NORMAL / 🐭 HIGH** — change the pitch from a deep scary voice to a
-  normal one to a silly high one. Tapping one plays a sample too.
+- **Character voices** — four buttons that each sound like a totally different
+  person, because each one picks a different voice *and* a different tone:
+  - **🤖 ROBOT** — slow, low, robot-computer voice
+  - **👹 MONSTER** — super deep and growly
+  - **🐿️ CHIPMUNK** — high, fast, and silly
+  - **🎩 FANCY** — a posh, proper-sounding voice
+- **Voice menu** — below the character buttons, a dropdown lists *every* voice
+  your phone has, if you want to pick your own. (Different phones have different
+  voices, so try a few!)
 
-Your choice is used for both HACKER VOICE and NON-STOP MODE.
+Tapping any of them plays a sample so you can hear it. Your choice is used for
+both HACKER VOICE and NON-STOP MODE.
 
 ## ⚠️ IMPORTANT — how to make the voice actually talk
 
