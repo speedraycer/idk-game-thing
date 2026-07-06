@@ -64,12 +64,13 @@
     text-shadow: 0 0 5px var(--g); -webkit-appearance: none; appearance: none;
   }
   #charrow { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-  #victim {
+  #victim, #customsay {
     width: 100%; background: #000; border: 1px solid var(--g); color: var(--g);
     font-family: inherit; font-size: 14px; padding: 12px; border-radius: 6px;
     text-align: center; text-shadow: 0 0 5px var(--g);
   }
-  #victim::placeholder { color: var(--gd); }
+  #victim::placeholder, #customsay::placeholder { color: var(--gd); }
+  .divider { text-align: center; color: var(--gd); font-size: 11px; letter-spacing: 1px; margin: 2px 0; }
   button.op.sm { padding: 11px 4px; font-size: 13px; }
   button.op.sm.active { background: rgba(0,255,65,.32); box-shadow: 0 0 14px rgba(0,255,65,.55) inset; }
   #voicehint { font-size: 11px; color: var(--gd); text-align: center; margin: -2px 0 2px; }
@@ -103,8 +104,14 @@
     </div>
     <select id="voicesel"><option>loading voices…</option></select>
     <div id="voicehint">tap a character voice — each sounds different 🔊 (or pick your own from the menu)</div>
+
+    <div class="divider">— 1) LET THE HACKER TALK BY ITSELF —</div>
     <button class="op" data-voice="talk">🎙️ HACKER VOICE — talk to them</button>
     <button class="op danger" data-voice="nonstop">🔴 NON-STOP MODE — keeps talking</button>
+
+    <div class="divider">— 2) OR TYPE YOUR OWN MESSAGE —</div>
+    <input id="customsay" type="text" placeholder="✍️ type anything and it will say it..." autocomplete="off" spellcheck="false">
+    <button class="op" data-voice="custom">🗣️ MAKE IT SAY THIS</button>
   </div>
 </div>
 
@@ -360,6 +367,23 @@
   }
 
   // NON-STOP MODE: keeps speaking random lines with a short gap, until toggled off.
+  // TYPE-YOUR-OWN: speak exactly what the user typed in the box
+  function customTalk() {
+    var el = document.getElementById("customsay");
+    var txt = el ? el.value.trim() : "";
+    if (!txt) { line(""); line("> type a message in the box first! ✍️", "warn"); line(""); return; }
+    if (busy) return;
+    busy = true; pad.style.opacity = ".5"; pad.style.pointerEvents = "none";
+    stopSpeak();
+    line("");
+    line('  "' + fill(txt) + '"', "bad");
+    buzz(30); beep(120, 0.06, "sawtooth", 0.05);
+    say(txt).then(function () {
+      line("> ...said it.", "ok"); line("");
+      busy = false; pad.style.opacity = "1"; pad.style.pointerEvents = "auto";
+    });
+  }
+
   var live = false, liveTimer = null;
   function startLive(btn) {
     live = true;
@@ -405,6 +429,7 @@
     var vc = b.getAttribute("data-voice");
     if (vc === "talk") { talk(); }
     else if (vc === "nonstop") { live ? stopLive(b) : startLive(b); }
+    else if (vc === "custom") { customTalk(); }
   });
 
   // change the voice from the dropdown (plays a sample so you can hear it)
