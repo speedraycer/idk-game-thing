@@ -55,7 +55,7 @@
     border: 1px solid var(--g); border-radius: 6px; padding: 16px 8px;
     font-family: inherit; font-size: 15px; font-weight: bold; letter-spacing: .5px;
     text-shadow: 0 0 6px var(--g); box-shadow: 0 0 10px rgba(0,255,65,.15) inset; cursor: pointer;
-    transition: transform .06s, background .1s;
+    transition: transform .06s, background .1s; touch-action: manipulation;
   }
   button.op:active { transform: scale(.97); background: rgba(0,255,65,.25); }
   button.op.danger { border-color: var(--r); color: var(--r); text-shadow: 0 0 6px var(--r); }
@@ -71,6 +71,8 @@
   #charrow { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
   #skinrow { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
   #skinrow button.op.sm { font-size: 12px; padding: 10px 2px; }
+  #sayings { display: grid; gap: 6px; max-height: 240px; overflow-y: auto; padding: 6px; border: 1px solid var(--gd); border-radius: 6px; }
+  button.op.say { padding: 10px 12px; font-size: 12px; font-weight: normal; text-align: left; }
   #victim, #customsay {
     width: 100%; background: #000; border: 1px solid var(--g); color: var(--g);
     font-family: inherit; font-size: 14px; padding: 12px; border-radius: 6px;
@@ -127,6 +129,10 @@
     <div class="divider">— 2) OR TYPE YOUR OWN MESSAGE —</div>
     <input id="customsay" type="text" placeholder="✍️ type anything and it will say it..." autocomplete="off" spellcheck="false">
     <button class="op" data-voice="custom">🗣️ MAKE IT SAY THIS</button>
+
+    <div class="divider">— 3) SEE WHAT IT CAN SAY —</div>
+    <button class="op" data-toggle="sayings">📜 SEE EVERYTHING IT CAN SAY</button>
+    <div id="sayings" style="display:none"></div>
   </div>
 </div>
 
@@ -445,11 +451,30 @@
     line("> the hacker goes quiet... for now.", "ok"); line("");
   }
 
-  pad.addEventListener("click", function (e) {
-    var b = e.target.closest("button.op");
+  function onPadTap(e) {
+    var t = e.target;
+    var b = (t && t.closest) ? t.closest("button.op") : null;
     if (!b) return;
     // these run inside the real tap so phones allow the voice to play
     audio(); unlockSpeech(); buzz(25);
+
+    var tg = b.getAttribute("data-toggle");
+    if (tg === "sayings") {
+      var box = document.getElementById("sayings");
+      if (box.style.display === "none" || !box.style.display) {
+        buildSayings(); box.style.display = "grid"; b.textContent = "📜 HIDE THE LIST";
+      } else { box.style.display = "none"; b.textContent = "📜 SEE EVERYTHING IT CAN SAY"; }
+      return;
+    }
+    var si = b.getAttribute("data-sayidx");
+    if (si !== null && si !== undefined) {
+      stopAll();
+      var line1 = fill(POOL[parseInt(si, 10)] || "");
+      line(""); line('  "' + line1 + '"', "bad"); buzz(30); beep(120, 0.06, "sawtooth", 0.05);
+      say(line1);
+      return;
+    }
+
     var sk = b.getAttribute("data-skin");
     if (sk) {
       applySkin(sk);
@@ -473,7 +498,29 @@
     else if (vc === "talk") { talk(); }
     else if (vc === "nonstop") { live ? stopLive(b) : startLive(b); }
     else if (vc === "custom") { customTalk(); }
-  });
+  }
+  // Bind BOTH click and touch so taps always register on iPhones. touchend
+  // fires first and cancels the follow-up click so it never double-runs.
+  pad.addEventListener("click", onPadTap);
+  pad.addEventListener("touchend", function (e) {
+    var t = e.target;
+    if (t && t.closest && t.closest("button.op")) { e.preventDefault(); onPadTap(e); }
+  }, { passive: false });
+
+  // build the "everything it can say" list (each line is tappable to speak it)
+  function buildSayings() {
+    var box = document.getElementById("sayings");
+    if (!box) return;
+    box.innerHTML = "";
+    var tip = document.createElement("div"); tip.className = "divider"; tip.textContent = "👇 tap any line to make it say that one";
+    box.appendChild(tip);
+    for (var i = 0; i < POOL.length; i++) {
+      var btn = document.createElement("button");
+      btn.className = "op say"; btn.setAttribute("data-sayidx", i);
+      btn.textContent = fill(POOL[i]);
+      box.appendChild(btn);
+    }
+  }
 
   // change the voice from the dropdown (plays a sample so you can hear it)
   var voicesel = document.getElementById("voicesel");
