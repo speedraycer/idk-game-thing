@@ -258,10 +258,29 @@
     setTimeout(loadVoices, 250); setTimeout(loadVoices, 900); setTimeout(loadVoices, 2000);
   }
 
+  // has the voice ever actually made sound? used to warn about the mute switch
+  var spokeOnce = false, soundWarned = false;
+  function warnNoSound() {
+    if (soundWarned) return; soundWarned = true;
+    setTimeout(function () {
+      if (spokeOnce) return; // we heard it — all good
+      line("", null);
+      line("🔈 CAN'T HEAR THE VOICE?", "warn");
+      line("  1) Flip the SILENT switch on the LEFT side of your iPhone", "warn");
+      line("     (if you see ORANGE, it is muted — push it so the orange hides)", "warn");
+      line("  2) Press the VOLUME UP button on the side a few times", "warn");
+      line("  3) Then tap a voice button again 🎙️", "warn");
+      line("", null);
+    }, 1900);
+  }
+
   // speak one line in a slow, deep, creepy voice; resolves when it finishes
   function say(text) {
     return new Promise(function (res) {
-      if (!synth) { res(); return; }
+      if (!synth) {
+        if (!soundWarned) { soundWarned = true; line("⚠ this browser can't do voices — open it in Safari.", "warn"); }
+        res(); return;
+      }
       var msg = clean(text);
       if (!msg) { res(); return; }
       var done = false; function fin() { if (!done) { done = true; res(); } }
@@ -269,8 +288,10 @@
         var u = new SpeechSynthesisUtterance(msg);
         var v = chosenVoice || pickVoice(); if (v) u.voice = v;
         u.pitch = chosenPitch; u.rate = chosenRate; u.volume = 1;
+        u.onstart = function () { spokeOnce = true; };
         u.onend = fin; u.onerror = fin;
         synth.speak(u);
+        warnNoSound(); // if nothing is heard shortly, tell them about the mute switch
         // safety: never hang forever if the browser drops the 'end' event
         setTimeout(fin, Math.max(4000, msg.length * 140));
       } catch (e) { fin(); }
