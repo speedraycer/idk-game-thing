@@ -70,7 +70,8 @@
     text-shadow: 0 0 5px var(--g); -webkit-appearance: none; appearance: none;
   }
   #charrow { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-  #sillyrow { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+  #sillyrow { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  button.op.sm[data-silly="rage"].active { background: rgba(255,60,0,.35); box-shadow: 0 0 14px rgba(255,60,0,.6) inset; }
   #sayings { display: grid; gap: 6px; max-height: 240px; overflow-y: auto; padding: 6px; border: 1px solid var(--gd); border-radius: 6px; }
   button.op.say { padding: 10px 12px; font-size: 12px; font-weight: normal; text-align: left; }
   #victim, #customsay {
@@ -131,6 +132,7 @@
       <button class="op sm active" data-silly="cool">COOL</button>
       <button class="op sm" data-silly="medium">MIXED</button>
       <button class="op sm" data-silly="silly">SILLY</button>
+      <button class="op sm" data-silly="rage">😤 RAGE</button>
     </div>
 
     <div class="divider">LINE LIBRARY</div>
@@ -408,26 +410,69 @@
     "Hey {name}, I turned all your apps upside down. Enjoy."
   ];
 
-  // silliness level the user picks: "cool", "medium" (a mix), or "silly"
+  // pure RAGE-BAIT taunts — no hacker theme, just annoying trash talk (PG)
+  var POOL_RAGE = [
+    "You're too slow.",
+    "I already won. You just don't know it yet.",
+    "Is that really your best?",
+    "Cry about it.",
+    "Skill issue.",
+    "I'm not even trying right now.",
+    "You will never beat me. Never.",
+    "Aww, are you mad? You seem mad.",
+    "Nice try. Not really though.",
+    "I could do this all day. You can't.",
+    "Too easy. Way too easy.",
+    "You're still losing, by the way.",
+    "L. Take the L.",
+    "Imagine being this slow.",
+    "I've seen snails move faster than you.",
+    "Keep trying. It's funny to watch.",
+    "You mad? Stay mad.",
+    "Ratio.",
+    "Get good, then come back.",
+    "That was embarrassing. For you.",
+    "Yawn. Is that all you've got?",
+    "Second place is just first loser. That's you.",
+    "Womp womp.",
+    "Cope. Seethe. Repeat.",
+    "You're not even close.",
+    "This is why you always lose.",
+    "{name}, you're too slow.",
+    "Nice try, {name}. You still lose.",
+    "{name}, are you mad? You seem mad.",
+    "Cry about it, {name}.",
+    "{name}, skill issue. Classic.",
+    "Better luck never, {name}."
+  ];
+
+  // tone the user picks: "cool", "medium", "silly", or "rage"
   var sillyLevel = "cool";
   function currentPool() {
+    if (sillyLevel === "rage") return POOL_RAGE;
     if (sillyLevel === "silly") return POOL_SILLY;
     if (sillyLevel === "medium") return POOL_COOL.concat(POOL_SILLY);
     return POOL_COOL;
   }
   // random opening + ending so it is different every time
   function greeting() {
+    if (sillyLevel === "rage") return pick(["Oh look who it is.", "Ready to lose?", "This is gonna be easy.", "Hi. You're bad at this.", "Here we go again. Me winning, you crying."]);
     return pick(["I am a hacker.", "You have been hacked.", "I am already in your phone.",
       "Access granted.", "Well, well, well. A new phone to break into.", "Guess who is in your phone."]);
   }
   function outroLine() {
+    if (sillyLevel === "rage") return pick(["Anyway, you lost.", "Womp womp.", "Stay mad.", "Cope and seethe.", "L. Bye."]);
     if (sillyLevel === "silly") return pick(["Beep boop. You have been pranked.", "Ha! Pranked.", "That is all. Enjoy the potatoes."]);
     if (sillyLevel === "medium") return pick(["Ha. You have been pranked.", "Consider yourself pranked.", "Too easy. Goodbye."]);
     return pick(["Consider yourself hacked.", "I am gone. You will never find me.", "Hack complete. Goodbye."]);
   }
 
   // whose name to use (typed in the box, or a silly default)
-  function who() { var el = document.getElementById("victim"); var v = el ? el.value.trim() : ""; return v || "the target"; }
+  function who() {
+    var el = document.getElementById("victim"); var v = el ? el.value.trim() : "";
+    if (v) return v;
+    return sillyLevel === "rage" ? "champ" : "the target";
+  }
   function fill(s) { return String(s).replace(/\{name\}/g, who()); }
   function shuffle(a) { a = a.slice(); for (var i = a.length - 1; i > 0; i--) { var j = rnd(i + 1); var t = a[i]; a[i] = a[j]; a[j] = t; } return a; }
 
