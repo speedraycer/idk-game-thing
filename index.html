@@ -103,34 +103,37 @@
   <div id="term"></div>
 
   <div id="pad">
-    <input id="victim" type="text" placeholder="👤 type their name (like your cousin!)" autocomplete="off" spellcheck="false">
+    <div class="divider">TYPE WHAT IT SAYS</div>
+    <input id="customsay" type="text" placeholder="&gt; type a message to speak..." autocomplete="off" spellcheck="false">
+    <button class="op" data-voice="custom">▶ SPEAK THIS</button>
+
+    <div class="divider">AUTO — it speaks on its own</div>
+    <button class="op" data-voice="talk">🎙️ HACKER VOICE</button>
+    <button class="op danger" data-voice="nonstop">🔁 NON-STOP</button>
+    <button class="op stop" data-voice="stop">⏹ STOP</button>
+
+    <div class="divider">TARGET</div>
+    <input id="victim" type="text" placeholder="&gt; target name (optional)" autocomplete="off" spellcheck="false">
+
+    <div class="divider">VOICE</div>
     <div id="charrow">
       <button class="op sm active" data-char="robot">🤖 ROBOT</button>
-      <button class="op sm" data-char="monster">👹 MONSTER</button>
-      <button class="op sm" data-char="chipmunk">🐿️ CHIPMUNK</button>
-      <button class="op sm" data-char="fancy">🎩 FANCY</button>
+      <button class="op sm" data-char="monster">🎧 DEEP</button>
+      <button class="op sm" data-char="chipmunk">⚡ HIGH</button>
+      <button class="op sm" data-char="fancy">🎩 AGENT</button>
     </div>
     <select id="voicesel"><option>loading voices…</option></select>
-    <div id="voicehint">tap a character voice — each sounds different 🔊 (or pick your own from the menu)</div>
+    <div id="voicehint">tap a voice to hear a sample</div>
 
-    <div class="divider">😎 HOW SILLY SHOULD IT BE?</div>
+    <div class="divider">TONE</div>
     <div id="sillyrow">
-      <button class="op sm active" data-silly="cool">😎 COOL</button>
-      <button class="op sm" data-silly="medium">😏 MEDIUM</button>
-      <button class="op sm" data-silly="silly">🤪 SILLY</button>
+      <button class="op sm active" data-silly="cool">COOL</button>
+      <button class="op sm" data-silly="medium">MIXED</button>
+      <button class="op sm" data-silly="silly">SILLY</button>
     </div>
 
-    <div class="divider">— 1) LET THE HACKER TALK BY ITSELF —</div>
-    <button class="op" data-voice="talk">🎙️ HACKER VOICE — talk to them</button>
-    <button class="op danger" data-voice="nonstop">🔴 NON-STOP MODE — keeps talking</button>
-    <button class="op stop" data-voice="stop">✋ STOP — make it be quiet</button>
-
-    <div class="divider">— 2) OR TYPE YOUR OWN MESSAGE —</div>
-    <input id="customsay" type="text" placeholder="✍️ type anything and it will say it..." autocomplete="off" spellcheck="false">
-    <button class="op" data-voice="custom">🗣️ MAKE IT SAY THIS</button>
-
-    <div class="divider">— 3) SEE WHAT IT CAN SAY —</div>
-    <button class="op" data-toggle="sayings">📜 SEE EVERYTHING IT CAN SAY</button>
+    <div class="divider">LINE LIBRARY</div>
+    <button class="op" data-toggle="sayings">📜 ALL LINES</button>
     <div id="sayings" style="display:none"></div>
   </div>
 </div>
@@ -423,7 +426,7 @@
   }
 
   // whose name to use (typed in the box, or a silly default)
-  function who() { var el = document.getElementById("victim"); var v = el ? el.value.trim() : ""; return v || "silly goose"; }
+  function who() { var el = document.getElementById("victim"); var v = el ? el.value.trim() : ""; return v || "the target"; }
   function fill(s) { return String(s).replace(/\{name\}/g, who()); }
   function shuffle(a) { a = a.slice(); for (var i = a.length - 1; i > 0; i--) { var j = rnd(i + 1); var t = a[i]; a[i] = a[j]; a[j] = t; } return a; }
 
@@ -437,7 +440,7 @@
     if (liveTimer) { clearTimeout(liveTimer); liveTimer = null; }
     stopSpeak();
     var nb = pad.querySelector('button[data-voice="nonstop"]');
-    if (nb) { nb.textContent = "🔴 NON-STOP MODE — keeps talking"; nb.classList.remove("live"); }
+    if (nb) { nb.textContent = "🔁 NON-STOP"; nb.classList.remove("live"); }
   }
 
   // HACKER VOICE: speak the whole monologue. First line fires immediately on the
@@ -446,7 +449,7 @@
     stopAll();
     var myGen = gen;
     line("");
-    line("> voice online. listen carefully...", "cmd");
+    line("> voice online.", "cmd");
     // built fresh each time: greeting + random jokes + ending -> never the same
     var n = 7 + rnd(3); // 7, 8, or 9 random lines each time
     var seq = [greeting()].concat(shuffle(currentPool()).slice(0, n)).concat([outroLine()]);
@@ -466,13 +469,13 @@
   function customTalk() {
     var el = document.getElementById("customsay");
     var txt = el ? el.value.trim() : "";
-    if (!txt) { line(""); line("> type a message in the box first! ✍️", "warn"); line(""); return; }
+    if (!txt) { line(""); line("> type a message first.", "warn"); line(""); return; }
     stopAll();   // interrupt anything so this ALWAYS works, even mid-speech
     line("");
     line('  "' + fill(txt) + '"', "bad");
     buzz(30); beep(120, 0.06, "sawtooth", 0.05);
     say(txt);
-    line("> ...said it.", "ok"); line("");
+    line("> done.", "ok"); line("");
   }
 
   var live = false, liveTimer = null;
@@ -482,7 +485,7 @@
     btn.textContent = "🛑 STOP TALKING";
     btn.classList.add("live");
     line("");
-    line("> NON-STOP MODE ON. the hacker will keep talking. tap to stop.", "bad");
+    line("> non-stop mode engaged. tap STOP to end.", "bad");
     (function loop() {
       if (!live || myGen !== gen) return;
       var s = fill(pick(currentPool()));
@@ -496,7 +499,7 @@
   }
   function stopLive() {
     stopAll();
-    line("> the hacker goes quiet... for now.", "ok"); line("");
+    line("> stopped.", "ok"); line("");
   }
 
   function onPadTap(e) {
@@ -510,8 +513,8 @@
     if (tg === "sayings") {
       var box = document.getElementById("sayings");
       if (box.style.display === "none" || !box.style.display) {
-        buildSayings(); box.style.display = "grid"; b.textContent = "📜 HIDE THE LIST";
-      } else { box.style.display = "none"; b.textContent = "📜 SEE EVERYTHING IT CAN SAY"; }
+        buildSayings(); box.style.display = "grid"; b.textContent = "📜 HIDE LINES";
+      } else { box.style.display = "none"; b.textContent = "📜 ALL LINES"; }
       return;
     }
     var si = b.getAttribute("data-sayidx");
@@ -531,7 +534,7 @@
       b.classList.add("active");
       var sbox = document.getElementById("sayings");
       if (sbox && sbox.style.display === "grid") buildSayings(); // refresh open list
-      line("> silliness set to " + b.textContent.trim(), "ok");
+      line("> tone: " + b.textContent.trim(), "ok");
       return;
     }
     var ch = b.getAttribute("data-char");
@@ -540,12 +543,12 @@
       var cbtns = pad.querySelectorAll("button[data-char]");
       for (var i = 0; i < cbtns.length; i++) cbtns[i].classList.remove("active");
       b.classList.add("active");
-      line("> voice changed to " + b.textContent.trim() + " — listen!", "ok");
+      line("> voice: " + b.textContent.trim(), "ok");
       sample();
       return;
     }
     var vc = b.getAttribute("data-voice");
-    if (vc === "stop") { stopAll(); line("> ok, the hacker is quiet now. 🤫", "ok"); line(""); }
+    if (vc === "stop") { stopAll(); line("> stopped.", "ok"); line(""); }
     else if (vc === "talk") { talk(); }
     else if (vc === "nonstop") { live ? stopLive(b) : startLive(b); }
     else if (vc === "custom") { customTalk(); }
@@ -563,7 +566,7 @@
     var box = document.getElementById("sayings");
     if (!box) return;
     box.innerHTML = "";
-    var tip = document.createElement("div"); tip.className = "divider"; tip.textContent = "👇 tap any line to make it say that one";
+    var tip = document.createElement("div"); tip.className = "divider"; tip.textContent = "tap a line to speak it";
     box.appendChild(tip);
     var lines = currentPool();
     for (var i = 0; i < lines.length; i++) {
@@ -634,9 +637,8 @@
     await progress("CONNECTING TO DARKNET...", 1000);
     line("  connected via " + ip() + " [stealth mode]", "dim");
     line("", null);
-    line("> tap 🎙️ HACKER VOICE and the hacker will start talking out loud.", "warn");
-    line("> tap 🔴 NON-STOP MODE to make it keep talking on its own.", "warn");
-    line("> turn the phone volume UP! 🔊", "warn");
+    line("> type a message and press SPEAK THIS, or press HACKER VOICE.", "warn");
+    line("> volume up, silent switch off.", "warn");
     line("", null);
   }
 
