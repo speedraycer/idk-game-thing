@@ -27,6 +27,11 @@
   #cam.on::after { content: "\25CF REC"; position: fixed; top: calc(8px + env(safe-area-inset-top)); right: 14px;
     color: #ff2b2b; font-weight: bold; font-size: 13px; letter-spacing: 1px; z-index: 4;
     text-shadow: 0 0 6px #ff2b2b; animation: blink 1s infinite; }
+  #reticle { position: fixed; z-index: 3; display: none; pointer-events: none; border: 2px solid var(--r);
+    box-shadow: 0 0 12px var(--r), inset 0 0 12px rgba(255,34,34,.3); border-radius: 4px; transition: all .25s ease; }
+  #reticle.on { display: block; }
+  #reticle::before { content: "TARGET"; position: absolute; top: -16px; left: 0; font-size: 10px; color: var(--r);
+    text-shadow: 0 0 6px var(--r); letter-spacing: 1px; }
   #app {
     position: fixed; inset: 0; z-index: 1; display: flex; flex-direction: column;
     padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
@@ -99,6 +104,7 @@
 
 <canvas id="matrix"></canvas>
 <div id="cam"><video id="camvid" autoplay playsinline muted></video></div>
+<div id="reticle"></div>
 <div class="scan"></div>
 
 <div id="app">
@@ -106,7 +112,7 @@
     <span class="dot"></span>
     <span>root@darknet:~#</span>
     <span class="sep"></span>
-    <span class="dim" style="font-size:11px; margin-right:8px">BUILD 20</span>
+    <span class="dim" style="font-size:11px; margin-right:8px">BUILD 21</span>
     <span id="clock" class="dim">--:--:--</span>
   </header>
 
@@ -778,21 +784,57 @@
     if (h < 290) return "purple";
     return "pink";
   }
+  // rough skin-tone test, only used to LOCATE a person to aim at (never to
+  // comment on skin — the roasts are about shirt color / movement)
+  function isSkin(r, g, b) {
+    var mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+    if (r > 95 && g > 40 && b > 20 && (mx - mn) > 15 && Math.abs(r - g) > 15 && r > g && r > b) return true;
+    // allowance for darker tones
+    if (r > 55 && r >= g && g >= b && (r - b) > 8 && (mx - mn) < 90 && mn > 18) return true;
+    return false;
+  }
+  function updateTarget(person, minx, miny, maxx, maxy) {
+    var ret = document.getElementById("reticle");
+    if (!ret) return;
+    if (!person || !watching) { ret.classList.remove("on"); return; }
+    var l = (minx / 48) * 100, t = (miny / 48) * 100;
+    var w = ((maxx - minx + 1) / 48) * 100, h = ((maxy - miny + 1) / 48) * 100 + 22; // extend down over the torso
+    ret.style.left = l + "%"; ret.style.top = t + "%"; ret.style.width = w + "%";
+    ret.style.height = Math.min(100 - t, h) + "%";
+    ret.classList.add("on");
+  }
   function analyzeFrame() {
     var v = document.getElementById("camvid");
     if (!v || !v.videoWidth) return null;
     try { sctx.drawImage(v, 0, 0, 48, 48); } catch (e) { return null; }
     var d; try { d = sctx.getImageData(0, 0, 48, 48).data; } catch (e) { return null; }
-    // main color from the middle area (where a person/shirt usually is)
+    // 1) find the person via skin pixels -> face location
+    var sx = 0, sy = 0, sc = 0, minx = 48, miny = 48, maxx = 0, maxy = 0;
+    for (var y = 0; y < 48; y++) for (var x = 0; x < 48; x++) {
+      var i = (y * 48 + x) * 4;
+      if (isSkin(d[i], d[i + 1], d[i + 2])) { sx += x; sy += y; sc++; if (x < minx) minx = x; if (x > maxx) maxx = x; if (y < miny) miny = y; if (y > maxy) maxy = y; }
+    }
+    var person = sc > 12;
+    var x0, x1, y0, y1;
+    if (person) {
+      var cx = sx / sc;
+      y0 = Math.min(46, maxy + 2); y1 = Math.min(48, y0 + 14);      // shirt = just below the face
+      if (y1 - y0 < 4) { y0 = Math.min(40, Math.round(sy / sc) + 8); y1 = Math.min(48, y0 + 8); }
+      x0 = Math.max(0, Math.round(cx - 8)); x1 = Math.min(48, Math.round(cx + 8));
+    } else { x0 = 12; x1 = 36; y0 = 22; y1 = 42; }                   // fallback: center
+    // 2) average color of that focused region
     var r = 0, g = 0, b = 0, c = 0;
-    for (var y = 22; y < 42; y++) for (var x = 12; x < 36; x++) { var i = (y * 48 + x) * 4; r += d[i]; g += d[i + 1]; b += d[i + 2]; c++; }
+    for (var yy = y0; yy < y1; yy++) for (var xx = x0; xx < x1; xx++) { var j = (yy * 48 + xx) * 4; r += d[j]; g += d[j + 1]; b += d[j + 2]; c++; }
+    if (!c) c = 1;
     r = Math.round(r / c); g = Math.round(g / c); b = Math.round(b / c);
-    var tot = 0; for (var j = 0; j < d.length; j += 4) tot += (d[j] + d[j + 1] + d[j + 2]) / 3;
+    // 3) brightness + motion
+    var tot = 0; for (var k = 0; k < d.length; k += 4) tot += (d[k] + d[k + 1] + d[k + 2]) / 3;
     var bright = tot / (d.length / 4);
     var motion = 0;
-    if (prevPix) { var s = 0, n = 0; for (var k = 0; k < d.length; k += 16) { s += Math.abs(d[k] - prevPix[k]); n++; } motion = s / n; }
+    if (prevPix) { var s = 0, n = 0; for (var mm = 0; mm < d.length; mm += 16) { s += Math.abs(d[mm] - prevPix[mm]); n++; } motion = s / n; }
     prevPix = new Uint8ClampedArray(d);
-    return { color: colorName(r, g, b), brightness: bright, motion: motion };
+    updateTarget(person, minx, miny, maxx, maxy);
+    return { color: colorName(r, g, b), brightness: bright, motion: motion, person: person };
   }
   function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
   var lastColor = null;
@@ -800,6 +842,7 @@
   // generator), so it's rarely the same line twice and reacts to new targets.
   function camComment(a) {
     if (!a) return "I can't see anything. Fix the camera.";
+    if (a.person === false && Math.random() < 0.6) return pick(["I don't even see anyone. Come closer so I can roast you.", "Where'd everybody go? Cowards.", "Point me at a face. I dare you.", "Empty chair energy. Sit down so I can cook you."]);
     if (a.brightness < 42) return pick(["Turn on a light. I can't roast what I can't see.", "It's too dark. Scared to show your face?", "Lights on, coward."]);
     if (a.brightness > 238) return pick(["Way too bright. Are you trying to blind me?", "Turn it down, I'm getting flashbanged."]);
     if (a.motion > 30) return pick(["I saw that. Sit still.", "Stop moving, I'm trying to roast you.", "Nice dodge. Still losing though.", "Twitchy much? Calm down.", "Running away already?"]);
@@ -819,6 +862,7 @@
   var watching = false, watchTimer = null;
   function stopWatch() {
     watching = false; if (watchTimer) { clearTimeout(watchTimer); watchTimer = null; }
+    var ret = document.getElementById("reticle"); if (ret) ret.classList.remove("on");
     var rb = pad.querySelector('button[data-cam="roast"]'); if (rb) { rb.textContent = "👁 WATCH & ROAST"; rb.classList.remove("live"); }
   }
   function startWatch(btn) {
