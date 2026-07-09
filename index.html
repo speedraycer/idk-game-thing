@@ -21,6 +21,12 @@
     overflow: hidden; user-select: none; -webkit-user-select: none;
   }
   #matrix { position: fixed; inset: 0; z-index: 0; opacity: 0.35; }
+  #cam { position: fixed; inset: 0; z-index: 0; display: none; }
+  #cam.on { display: block; }
+  #camvid { width: 100%; height: 100%; object-fit: cover; opacity: .9; filter: brightness(.8) contrast(1.15) saturate(.9); }
+  #cam.on::after { content: "\25CF REC"; position: fixed; top: calc(8px + env(safe-area-inset-top)); right: 14px;
+    color: #ff2b2b; font-weight: bold; font-size: 13px; letter-spacing: 1px; z-index: 4;
+    text-shadow: 0 0 6px #ff2b2b; animation: blink 1s infinite; }
   #app {
     position: fixed; inset: 0; z-index: 1; display: flex; flex-direction: column;
     padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
@@ -92,6 +98,7 @@
 </style>
 
 <canvas id="matrix"></canvas>
+<div id="cam"><video id="camvid" autoplay playsinline muted></video></div>
 <div class="scan"></div>
 
 <div id="app">
@@ -134,6 +141,10 @@
       <button class="op sm" data-silly="silly">SILLY</button>
       <button class="op sm" data-silly="rage">😤 RAGE</button>
     </div>
+
+    <div class="divider">SPY CAM</div>
+    <button class="op" data-cam="toggle">📷 CAMERA ON</button>
+    <button class="op sm" data-cam="flip">🔄 FLIP CAMERA</button>
 
     <div class="divider">LINE LIBRARY</div>
     <button class="op" data-toggle="sayings">📜 ALL LINES</button>
@@ -446,6 +457,39 @@
     "Better luck never, {name}."
   ];
 
+  // RAGE generator — mixes an opener + a burn + a tag for 10,000+ combos.
+  // All PG and about the game/contest, never about who someone is.
+  var RAGE_OPEN = ["", "", "bro, ", "buddy, ", "champ, ", "kid, ", "listen, ", "hey, ", "yo, ", "{name}, ", "{name}, ", "aww {name}, "];
+  var RAGE_CORE = [
+    "you're getting destroyed", "you fell off so hard", "that was a certified L",
+    "you're not even trying", "I'm not even warmed up", "you're playing like it's your first day",
+    "you got cooked", "that was painful to watch", "you're built different, in the worst way",
+    "you're hard stuck", "you're washed", "you peaked in the tutorial", "you're a walking L",
+    "you couldn't win with a guide open", "you're getting carried and still losing",
+    "I could beat you blindfolded", "you're allergic to winning", "you're the reason the team loses",
+    "you're playing like a bot", "you got outplayed at every step", "you're too slow to keep up",
+    "you're throwing this so hard", "you fumbled that badly", "you're down bad", "you're not him",
+    "you're not even top ten in this room", "you had one job and blew it", "you're getting clapped",
+    "you move like you're buffering", "you're stuck on easy mode", "you're a free win",
+    "you make losing look easy", "you couldn't clutch a doorknob", "you're getting sent to the lobby",
+    "you're pressing buttons and hoping", "you're 0 and 100 right now", "you got styled on",
+    "you're a highlight reel for the other team", "you're the definition of skill issue",
+    "you're speedrunning defeat", "you're getting bodied", "you're a participation trophy",
+    "you should uninstall", "you're feeding again", "you play like the controller is unplugged",
+    "you're a bot with extra steps", "you're getting dogwalked", "you're the easiest win all day",
+    "you couldn't beat a loading screen", "you're cooked, well done", "you got sent to voicemail",
+    "you're not built for this", "you're a certified bench warmer", "you peaked in practice mode",
+    "you're allergic to clutching", "you're stuck in bronze forever", "you're a walking participation award",
+    "you're getting tutorialized", "you're the tutorial boss and you still lose"
+  ];
+  var RAGE_CLOSE = [". Cope.", ". Stay mad.", ". Womp womp.", ". Skill issue.", ". Take the L.",
+    ". Ratio.", ". Get good.", ". Seethe.", ". Cry about it.", ". Stay pressed.", ". It's rent free.",
+    ".", ".", "."];
+  function rageLine() {
+    var s = pick(RAGE_OPEN) + pick(RAGE_CORE) + pick(RAGE_CLOSE);
+    return s.charAt(0).toUpperCase() + s.slice(1);
+  }
+
   // tone the user picks: "cool", "medium", "silly", or "rage"
   var sillyLevel = "cool";
   function currentPool() {
@@ -454,6 +498,16 @@
     if (sillyLevel === "medium") return POOL_COOL.concat(POOL_SILLY);
     return POOL_COOL;
   }
+  // n distinct raw lines for the current tone (rage uses the generator)
+  function pickLines(n) {
+    var out = [], seen = {}, tries = 0;
+    if (sillyLevel === "rage") {
+      while (out.length < n && tries < n * 40) { tries++; var l = rageLine(); if (!seen[l]) { seen[l] = 1; out.push(l); } }
+      return out;
+    }
+    return shuffle(currentPool()).slice(0, n);
+  }
+  function oneLine() { return sillyLevel === "rage" ? rageLine() : pick(currentPool()); }
   // random opening + ending so it is different every time
   function greeting() {
     if (sillyLevel === "rage") return pick(["Oh look who it is.", "Ready to lose?", "This is gonna be easy.", "Hi. You're bad at this.", "Here we go again. Me winning, you crying."]);
@@ -498,7 +552,7 @@
     line("> voice online.", "cmd");
     // built fresh each time: greeting + random jokes + ending -> never the same
     var n = 7 + rnd(3); // 7, 8, or 9 random lines each time
-    var seq = [greeting()].concat(shuffle(currentPool()).slice(0, n)).concat([outroLine()]);
+    var seq = [greeting()].concat(pickLines(n)).concat([outroLine()]);
     var i = 0;
     (function next() {
       if (myGen !== gen) return;               // another button was tapped -> stop
@@ -534,7 +588,7 @@
     line("> non-stop mode engaged. tap STOP to end.", "bad");
     (function loop() {
       if (!live || myGen !== gen) return;
-      var s = fill(pick(currentPool()));
+      var s = fill(oneLine());
       line('  "' + s + '"', "bad");
       buzz(30); beep(120, 0.06, "sawtooth", 0.05);
       say(s).then(function () {
@@ -566,7 +620,7 @@
     var si = b.getAttribute("data-sayidx");
     if (si !== null && si !== undefined) {
       stopAll();
-      var line1 = fill(currentPool()[parseInt(si, 10)] || "");
+      var line1 = fill(shownLines[parseInt(si, 10)] || "");
       line(""); line('  "' + line1 + '"', "bad"); buzz(30); beep(120, 0.06, "sawtooth", 0.05);
       say(line1);
       return;
@@ -593,6 +647,10 @@
       sample();
       return;
     }
+    var camb = b.getAttribute("data-cam");
+    if (camb === "toggle") { toggleCam(); return; }
+    if (camb === "flip") { flipCam(); return; }
+
     var vc = b.getAttribute("data-voice");
     if (vc === "stop") { stopAll(); line("> stopped.", "ok"); line(""); }
     else if (vc === "talk") { talk(); }
@@ -603,18 +661,56 @@
   // does not interfere with scrolling the panel.
   pad.addEventListener("click", onPadTap);
 
+  /* ---------- SPY CAM (shows YOUR phone's live camera) ---------- */
+  var camStream = null, camFacing = "environment";
+  function stopCamStream() { if (camStream) { camStream.getTracks().forEach(function (t) { t.stop(); }); camStream = null; } }
+  function setCamBtn(on) { var tb = pad.querySelector('button[data-cam="toggle"]'); if (tb) tb.textContent = on ? "📷 CAMERA OFF" : "📷 CAMERA ON"; }
+  function startCam() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      line("> camera not available here. open the real https site to use it.", "warn"); return;
+    }
+    stopCamStream();
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: camFacing }, audio: false }).then(function (stream) {
+      camStream = stream;
+      var v = document.getElementById("camvid"); v.srcObject = stream;
+      document.getElementById("cam").classList.add("on");
+      var cv = document.getElementById("matrix"); if (cv) cv.style.display = "none";
+      setCamBtn(true);
+      line("> camera online. 👁 target in sight.", "ok");
+    }).catch(function () {
+      setCamBtn(false);
+      line("> camera blocked. tap 'Allow' when it asks (and use the https site).", "warn");
+    });
+  }
+  function camOff() {
+    document.getElementById("cam").classList.remove("on"); stopCamStream();
+    var cv = document.getElementById("matrix"); if (cv) cv.style.display = "";
+    setCamBtn(false); line("> camera off.", "ok");
+  }
+  function toggleCam() {
+    if (document.getElementById("cam").classList.contains("on")) camOff(); else startCam();
+  }
+  function flipCam() {
+    camFacing = (camFacing === "environment") ? "user" : "environment";
+    if (document.getElementById("cam").classList.contains("on")) startCam();
+    else line("> flip set. turn the camera on to see it.", "ok");
+  }
+
   // build the "everything it can say" list (each line is tappable to speak it)
+  var shownLines = [];
   function buildSayings() {
     var box = document.getElementById("sayings");
     if (!box) return;
     box.innerHTML = "";
-    var tip = document.createElement("div"); tip.className = "divider"; tip.textContent = "tap a line to speak it";
+    // rage has 10,000+ combos, so show a fresh random sample; others show the full pool
+    shownLines = (sillyLevel === "rage") ? pickLines(40) : currentPool().slice();
+    var tip = document.createElement("div"); tip.className = "divider";
+    tip.textContent = (sillyLevel === "rage") ? "a random sample — tap one, or reopen for 40 new ones" : "tap a line to speak it";
     box.appendChild(tip);
-    var lines = currentPool();
-    for (var i = 0; i < lines.length; i++) {
+    for (var i = 0; i < shownLines.length; i++) {
       var btn = document.createElement("button");
       btn.className = "op say"; btn.setAttribute("data-sayidx", i);
-      btn.textContent = fill(lines[i]);
+      btn.textContent = fill(shownLines[i]);
       box.appendChild(btn);
     }
   }
