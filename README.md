@@ -61,9 +61,16 @@ is.
 
 ### 📷 Spy Cam
 Tap **📷 CAMERA ON** to show your phone's **live camera** in the app (with a
-red "● REC"), so you can point it and have the voice call things out. **FLIP
-CAMERA** switches front/back. Your phone will ask permission the first time,
-and this only works on the real **https** site (not the quick preview).
+red "● REC"). **FLIP CAMERA** switches front/back. Your phone will ask
+permission the first time, and this only works on the real **https** site (not
+the quick preview).
+
+**👁 WATCH & ROAST** makes the camera actually *react*: it reads the picture and
+roasts out loud what it sees — the **main color** in frame ("Nice red shirt,
+did you lose a bet?"), **movement** ("I saw that, sit still."), and **lighting**
+("Turn on a light, I can't roast what I can't see."). It keeps commenting every
+few seconds until you tap STOP. (It's all done on the phone by reading camera
+pixels — no internet or AI, so color guesses are approximate.)
 
 ### 📜 See everything it can say
 Tap **SEE EVERYTHING IT CAN SAY** to open a list of every line the hacker

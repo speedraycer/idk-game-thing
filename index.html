@@ -145,6 +145,7 @@
     <div class="divider">SPY CAM</div>
     <button class="op" data-cam="toggle">📷 CAMERA ON</button>
     <button class="op sm" data-cam="flip">🔄 FLIP CAMERA</button>
+    <button class="op" data-cam="roast">👁 WATCH &amp; ROAST</button>
 
     <div class="divider">LINE LIBRARY</div>
     <button class="op" data-toggle="sayings">📜 ALL LINES</button>
@@ -538,6 +539,7 @@
     gen++;
     live = false;
     if (liveTimer) { clearTimeout(liveTimer); liveTimer = null; }
+    if (typeof stopWatch === "function") stopWatch(); // also stop camera roasting
     stopSpeak();
     var nb = pad.querySelector('button[data-voice="nonstop"]');
     if (nb) { nb.textContent = "🔁 NON-STOP"; nb.classList.remove("live"); }
@@ -650,6 +652,7 @@
     var camb = b.getAttribute("data-cam");
     if (camb === "toggle") { toggleCam(); return; }
     if (camb === "flip") { flipCam(); return; }
+    if (camb === "roast") { watching ? stopWatch() : startWatch(b); return; }
 
     var vc = b.getAttribute("data-voice");
     if (vc === "stop") { stopAll(); line("> stopped.", "ok"); line(""); }
@@ -683,6 +686,7 @@
     });
   }
   function camOff() {
+    if (typeof stopWatch === "function") stopWatch();
     document.getElementById("cam").classList.remove("on"); stopCamStream();
     var cv = document.getElementById("matrix"); if (cv) cv.style.display = "";
     setCamBtn(false); line("> camera off.", "ok");
@@ -694,6 +698,76 @@
     camFacing = (camFacing === "environment") ? "user" : "environment";
     if (document.getElementById("cam").classList.contains("on")) startCam();
     else line("> flip set. turn the camera on to see it.", "ok");
+  }
+
+  /* ---------- camera "vision": reads pixels to roast what it sees ---------- */
+  var samp = document.createElement("canvas"); samp.width = 48; samp.height = 48;
+  var sctx = samp.getContext("2d");
+  var prevPix = null;
+  function colorName(r, g, b) {
+    var max = Math.max(r, g, b), min = Math.min(r, g, b), l = (max + min) / 2, dd = max - min;
+    if (dd < 22) { if (l < 60) return "black"; if (l > 200) return "white"; return "gray"; }
+    var h; if (max === r) h = ((g - b) / dd) % 6; else if (max === g) h = (b - r) / dd + 2; else h = (r - g) / dd + 4;
+    h *= 60; if (h < 0) h += 360;
+    if (h < 16 || h >= 345) return "red";
+    if (h < 45) return (l < 110 ? "brown" : "orange");
+    if (h < 70) return "yellow";
+    if (h < 165) return "green";
+    if (h < 200) return "teal";
+    if (h < 255) return "blue";
+    if (h < 290) return "purple";
+    return "pink";
+  }
+  function analyzeFrame() {
+    var v = document.getElementById("camvid");
+    if (!v || !v.videoWidth) return null;
+    try { sctx.drawImage(v, 0, 0, 48, 48); } catch (e) { return null; }
+    var d; try { d = sctx.getImageData(0, 0, 48, 48).data; } catch (e) { return null; }
+    // main color from the middle area (where a person/shirt usually is)
+    var r = 0, g = 0, b = 0, c = 0;
+    for (var y = 22; y < 42; y++) for (var x = 12; x < 36; x++) { var i = (y * 48 + x) * 4; r += d[i]; g += d[i + 1]; b += d[i + 2]; c++; }
+    r = Math.round(r / c); g = Math.round(g / c); b = Math.round(b / c);
+    var tot = 0; for (var j = 0; j < d.length; j += 4) tot += (d[j] + d[j + 1] + d[j + 2]) / 3;
+    var bright = tot / (d.length / 4);
+    var motion = 0;
+    if (prevPix) { var s = 0, n = 0; for (var k = 0; k < d.length; k += 16) { s += Math.abs(d[k] - prevPix[k]); n++; } motion = s / n; }
+    prevPix = new Uint8ClampedArray(d);
+    return { color: colorName(r, g, b), brightness: bright, motion: motion };
+  }
+  function camComment(a) {
+    if (!a) return "I can't see anything. Fix the camera.";
+    if (a.brightness < 42) return pick(["Turn on a light. I can't roast what I can't see.", "It's too dark. Scared to show your face?"]);
+    if (a.brightness > 238) return "Way too bright. Are you trying to blind me?";
+    if (a.motion > 26) return pick(["I saw that. Sit still.", "Stop moving, I'm trying to roast you.", "Nice dodge. Still losing though.", "Twitchy much? Calm down."]);
+    var col = a.color;
+    return pick([
+      "That " + col + " shirt? Bold choice. Wrong, but bold.",
+      "Nice " + col + " shirt. Did you lose a bet?",
+      "Who let you wear " + col + "?",
+      col + "? On purpose? Really?",
+      "I can see that " + col + " from space. Rough look.",
+      "That " + col + " is doing you zero favors.",
+      "Whoever picked that " + col + " owes you an apology.",
+      "Ah, a " + col + " enjoyer. Explains a lot."
+    ]);
+  }
+  var watching = false, watchTimer = null;
+  function stopWatch() {
+    watching = false; if (watchTimer) { clearTimeout(watchTimer); watchTimer = null; }
+    var rb = pad.querySelector('button[data-cam="roast"]'); if (rb) { rb.textContent = "👁 WATCH & ROAST"; rb.classList.remove("live"); }
+  }
+  function startWatch(btn) {
+    if (!document.getElementById("cam").classList.contains("on")) { line("> turn the camera ON first (tap 📷).", "warn"); return; }
+    watching = true; btn.textContent = "🛑 STOP ROASTING"; btn.classList.add("live");
+    prevPix = null;
+    line(""); line("> watching... 👁", "bad");
+    (function loop() {
+      if (!watching) return;
+      var a = analyzeFrame();
+      var msg = camComment(a);
+      stopSpeak(); line('  "' + msg + '"', "bad"); buzz(30); beep(120, 0.06, "sawtooth", 0.05); say(msg);
+      watchTimer = setTimeout(loop, 4200 + rnd(3000));
+    })();
   }
 
   // build the "everything it can say" list (each line is tappable to speak it)
