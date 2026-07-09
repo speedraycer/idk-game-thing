@@ -53,6 +53,18 @@ You can pick **two ways** to make the hacker talk:
    talking — it just interrupts and says your message.
 
 
+### 😤 RAGE tone (10,000+ taunts)
+RAGE builds each taunt from an opener + a burn + a tag, so there are over
+**10,000 different lines** — pure competitive trash talk ("skill issue",
+"you got dogwalked", "cope"). PG only: about the game, never about who someone
+is.
+
+### 📷 Spy Cam
+Tap **📷 CAMERA ON** to show your phone's **live camera** in the app (with a
+red "● REC"), so you can point it and have the voice call things out. **FLIP
+CAMERA** switches front/back. Your phone will ask permission the first time,
+and this only works on the real **https** site (not the quick preview).
+
 ### 📜 See everything it can say
 Tap **SEE EVERYTHING IT CAN SAY** to open a list of every line the hacker
 knows. Read them all, and **tap any line** to make the hacker say just that
