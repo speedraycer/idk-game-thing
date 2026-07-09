@@ -59,6 +59,15 @@ RAGE builds each taunt from an opener + a burn + a tag, so there are over
 "you got dogwalked", "cope"). PG only: about the game, never about who someone
 is.
 
+### 🎤 Clap Back (it hears & replies)
+Tap **🎤 LISTEN & CLAP BACK** and it uses the mic to hear what someone says,
+then fires back a comeback out loud — sometimes quoting them (*"You really
+said, 'you're bad at this'? Womp womp."*), sometimes a rage taunt, plus special
+replies to things like "shut up" ("Make me.") or questions ("Wouldn't you like
+to know."). It pauses the mic while it talks so it doesn't hear itself, then
+listens again. Needs mic permission + the **https** site. (Some phones/browsers
+don't support live listening; if so it'll say so.)
+
 ### 📷 Spy Cam
 Tap **📷 CAMERA ON** to show your phone's **live camera** in the app (with a
 red "● REC"). **FLIP CAMERA** switches front/back. Your phone will ask

@@ -142,6 +142,9 @@
       <button class="op sm" data-silly="rage">😤 RAGE</button>
     </div>
 
+    <div class="divider">CLAP BACK — it hears &amp; replies</div>
+    <button class="op" data-listen="toggle">🎤 LISTEN &amp; CLAP BACK</button>
+
     <div class="divider">SPY CAM</div>
     <button class="op" data-cam="toggle">📷 CAMERA ON</button>
     <button class="op sm" data-cam="flip">🔄 FLIP CAMERA</button>
@@ -540,6 +543,7 @@
     live = false;
     if (liveTimer) { clearTimeout(liveTimer); liveTimer = null; }
     if (typeof stopWatch === "function") stopWatch(); // also stop camera roasting
+    if (listening && typeof stopListen === "function") stopListen(); // stop clap-back listening
     stopSpeak();
     var nb = pad.querySelector('button[data-voice="nonstop"]');
     if (nb) { nb.textContent = "🔁 NON-STOP"; nb.classList.remove("live"); }
@@ -649,6 +653,9 @@
       sample();
       return;
     }
+    var lb = b.getAttribute("data-listen");
+    if (lb === "toggle") { listening ? stopListen() : startListen(); return; }
+
     var camb = b.getAttribute("data-cam");
     if (camb === "toggle") { toggleCam(); return; }
     if (camb === "flip") { flipCam(); return; }
@@ -663,6 +670,58 @@
   // Plain click delegation — reliable on iPhone for real <button> elements and
   // does not interfere with scrolling the panel.
   pad.addEventListener("click", onPadTap);
+
+  /* ---------- CLAP BACK: listen to speech and fire a comeback ---------- */
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  var recog = null, listening = false, botSpeaking = false;
+  function comeback(t) {
+    var low = t.toLowerCase();
+    if (/shut up|be quiet|stop talking/.test(low)) return pick(["Make me.", "No.", "You first.", "Cope."]);
+    if (/you('| a)?re (dumb|stupid|bad|trash|ugly|annoying)/.test(low)) return pick(["Takes one to know one.", "Projecting much?", "And yet, I'm still winning.", "Says the one losing."]);
+    if (/\?$/.test(t.trim()) || /^(what|why|how|who|when|where|are you|is it|can you|do you)/.test(low)) return pick(["Wouldn't you like to know.", "Not telling you.", "Figure it out. Oh wait, you can't.", "That's classified. You're not cleared."]);
+    if (/love you|you'?re nice|good job/.test(low)) return pick(["Ew. Don't.", "Cringe. But thanks I guess.", "I don't do compliments. Cope."]);
+    if (Math.random() < 0.4) {
+      var q = t.length > 42 ? t.slice(0, 42) + "..." : t;
+      return pick(['You really said, "' + q + '." Womp womp.', '"' + q + '"? Cope.', 'Did you just say, "' + q + '"? Embarrassing.', 'Oh, "' + q + '." Ratio.']);
+    }
+    return fill(rageLine());
+  }
+  function respondTo(t) {
+    botSpeaking = true;
+    line(""); line('  heard: "' + t + '"', "dim");
+    var reply = comeback(t);
+    line('  "' + reply + '"', "bad"); buzz(30); beep(120, 0.06, "sawtooth", 0.05);
+    say(reply).then(function () { botSpeaking = false; if (listening && recog) { try { recog.start(); } catch (e) {} } });
+  }
+  function makeRecog() {
+    var r = new SR();
+    r.lang = "en-US"; r.interimResults = false; r.continuous = false; r.maxAlternatives = 1;
+    r.onresult = function (e) {
+      var t = ""; for (var i = e.resultIndex; i < e.results.length; i++) t += e.results[i][0].transcript;
+      t = t.trim(); if (t) respondTo(t);
+    };
+    r.onerror = function (ev) {
+      if (ev.error === "not-allowed" || ev.error === "service-not-allowed") { stopListen(); line("> mic blocked. tap Allow, and use the https site.", "warn"); }
+    };
+    r.onend = function () { if (listening && !botSpeaking && recog) { try { recog.start(); } catch (e) {} } };
+    return r;
+  }
+  function setListenBtn(on) {
+    var lb = pad.querySelector('button[data-listen="toggle"]');
+    if (lb) { lb.textContent = on ? "🛑 STOP LISTENING" : "🎤 LISTEN & CLAP BACK"; if (on) lb.classList.add("live"); else lb.classList.remove("live"); }
+  }
+  function startListen() {
+    if (!SR) { line("> this browser can't listen. try Chrome, or use the other modes.", "warn"); return; }
+    listening = true; botSpeaking = false; setListenBtn(true);
+    if (!recog) recog = makeRecog();
+    line(""); line("> listening... say something and I'll clap back. 🎤", "bad");
+    try { recog.start(); } catch (e) {}
+  }
+  function stopListen() {
+    if (!listening) { setListenBtn(false); return; }
+    listening = false; if (recog) { try { recog.stop(); } catch (e) {} }
+    setListenBtn(false); line("> stopped listening.", "ok");
+  }
 
   /* ---------- SPY CAM (shows YOUR phone's live camera) ---------- */
   var camStream = null, camFacing = "environment";
