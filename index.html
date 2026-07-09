@@ -55,7 +55,7 @@
     border: 1px solid var(--g); border-radius: 6px; padding: 16px 8px;
     font-family: inherit; font-size: 15px; font-weight: bold; letter-spacing: .5px;
     text-shadow: 0 0 6px var(--g); box-shadow: 0 0 10px rgba(0,255,65,.15) inset; cursor: pointer;
-    transition: transform .06s, background .1s;
+    transition: transform .06s, background .1s; touch-action: manipulation;
   }
   button.op:active { transform: scale(.97); background: rgba(0,255,65,.25); }
   button.op.danger { border-color: var(--r); color: var(--r); text-shadow: 0 0 6px var(--r); }
@@ -71,6 +71,9 @@
   #charrow { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
   #skinrow { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
   #skinrow button.op.sm { font-size: 12px; padding: 10px 2px; }
+  #sillyrow { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+  #sayings { display: grid; gap: 6px; max-height: 240px; overflow-y: auto; padding: 6px; border: 1px solid var(--gd); border-radius: 6px; }
+  button.op.say { padding: 10px 12px; font-size: 12px; font-weight: normal; text-align: left; }
   #victim, #customsay {
     width: 100%; background: #000; border: 1px solid var(--g); color: var(--g);
     font-family: inherit; font-size: 14px; padding: 12px; border-radius: 6px;
@@ -119,6 +122,13 @@
     <select id="voicesel"><option>loading voices…</option></select>
     <div id="voicehint">tap a character voice — each sounds different 🔊 (or pick your own from the menu)</div>
 
+    <div class="divider">😎 HOW SILLY SHOULD IT BE?</div>
+    <div id="sillyrow">
+      <button class="op sm active" data-silly="cool">😎 COOL</button>
+      <button class="op sm" data-silly="medium">😏 MEDIUM</button>
+      <button class="op sm" data-silly="silly">🤪 SILLY</button>
+    </div>
+
     <div class="divider">— 1) LET THE HACKER TALK BY ITSELF —</div>
     <button class="op" data-voice="talk">🎙️ HACKER VOICE — talk to them</button>
     <button class="op danger" data-voice="nonstop">🔴 NON-STOP MODE — keeps talking</button>
@@ -127,6 +137,10 @@
     <div class="divider">— 2) OR TYPE YOUR OWN MESSAGE —</div>
     <input id="customsay" type="text" placeholder="✍️ type anything and it will say it..." autocomplete="off" spellcheck="false">
     <button class="op" data-voice="custom">🗣️ MAKE IT SAY THIS</button>
+
+    <div class="divider">— 3) SEE WHAT IT CAN SAY —</div>
+    <button class="op" data-toggle="sayings">📜 SEE EVERYTHING IT CAN SAY</button>
+    <div id="sayings" style="display:none"></div>
   </div>
 </div>
 
@@ -214,7 +228,7 @@
       sel.appendChild(o);
     });
   }
-  function sample() { stopSpeak(); say("I am a hacker. Beep boop. I am very silly."); }
+  function sample() { stopSpeak(); say("I am a hacker. I am inside your phone now."); }
 
   // Character voices: each picks a DIFFERENT device voice + its own pitch/rate,
   // so they sound like completely different people. Voice names vary by phone,
@@ -252,10 +266,29 @@
     setTimeout(loadVoices, 250); setTimeout(loadVoices, 900); setTimeout(loadVoices, 2000);
   }
 
+  // has the voice ever actually made sound? used to warn about the mute switch
+  var spokeOnce = false, soundWarned = false;
+  function warnNoSound() {
+    if (soundWarned) return; soundWarned = true;
+    setTimeout(function () {
+      if (spokeOnce) return; // we heard it — all good
+      line("", null);
+      line("🔈 CAN'T HEAR THE VOICE?", "warn");
+      line("  1) Flip the SILENT switch on the LEFT side of your iPhone", "warn");
+      line("     (if you see ORANGE, it is muted — push it so the orange hides)", "warn");
+      line("  2) Press the VOLUME UP button on the side a few times", "warn");
+      line("  3) Then tap a voice button again 🎙️", "warn");
+      line("", null);
+    }, 1900);
+  }
+
   // speak one line in a slow, deep, creepy voice; resolves when it finishes
   function say(text) {
     return new Promise(function (res) {
-      if (!synth) { res(); return; }
+      if (!synth) {
+        if (!soundWarned) { soundWarned = true; line("⚠ this browser can't do voices — open it in Safari.", "warn"); }
+        res(); return;
+      }
       var msg = clean(text);
       if (!msg) { res(); return; }
       var done = false; function fin() { if (!done) { done = true; res(); } }
@@ -263,8 +296,10 @@
         var u = new SpeechSynthesisUtterance(msg);
         var v = chosenVoice || pickVoice(); if (v) u.voice = v;
         u.pitch = chosenPitch; u.rate = chosenRate; u.volume = 1;
+        u.onstart = function () { spokeOnce = true; };
         u.onend = fin; u.onerror = fin;
         synth.speak(u);
+        warnNoSound(); // if nothing is heard shortly, tell them about the mute switch
         // safety: never hang forever if the browser drops the 'end' event
         setTimeout(fin, Math.max(4000, msg.length * 140));
       } catch (e) { fin(); }
@@ -331,13 +366,46 @@
 
   // Big pool of SILLY lines. {name} gets swapped for the name you typed (or a
   // goofy default). Shuffled every time so it is never the exact same speech.
-  var POOL = [
+  var POOL_COOL = [
+    "I am already inside this phone.",
+    "I got past your lock screen in two seconds flat.",
+    "I can see everything on this screen right now.",
+    "I copied every photo on this device.",
+    "I am reading your messages as we speak.",
+    "Your passwords are already mine.",
+    "I control the camera and the microphone.",
+    "I rerouted your data through twelve countries.",
+    "I move through this network like a shadow.",
+    "Every tap you make, I see it.",
+    "I cracked this phone in under a minute. Too easy.",
+    "Nothing on this device is hidden from me.",
+    "I have been in your system for three days.",
+    "I left no trace. You will never know how.",
+    "I am always three steps ahead of you.",
+    "This phone answers to me now.",
+    "I disabled your firewall before you even noticed.",
+    "I am downloading everything as we speak.",
+    "Your security was a joke. I walked right in.",
+    "I am the reason your battery keeps dying.",
+    "Consider this phone officially hacked.",
+    "I own this device now. All of it.",
+    "I slipped past every lock on this phone.",
+    "I have full access. Every app, every file.",
+    // lines that use the name you type:
+    "{name}. I know everything on this phone now.",
+    "Hello {name}. Your phone belongs to me.",
+    "Nice try locking me out, {name}. It did not work.",
+    "I found my way in, {name}. Too easy.",
+    "{name}, your data is mine now.",
+    "Access granted. Welcome to your problem, {name}."
+  ];
+
+  // the silly set
+  var POOL_SILLY = [
     "A super duper silly hacker.",
-    "I have broken into this phone to steal all the snacks.",
-    "I can see your screen right now. It is very smudgy. Please clean it.",
+    "I broke into this phone to steal all the snacks.",
+    "I can see your screen. It is very smudgy. Please clean it.",
     "I hacked the camera. Wow. Nice face. Ten out of ten.",
-    "I looked at your photos. Too many blurry ones. Do better.",
-    "I found your search history. Kind of boring. Search something cooler.",
     "I changed your ringtone to a duck quacking. You are welcome.",
     "I replaced all your emojis with tiny potatoes.",
     "I am the boss of this phone now. My first rule is more naps.",
@@ -348,26 +416,29 @@
     "I know your password. It is probably password. Classic.",
     "Every phone in this house owes me a taco.",
     "I hacked your alarm. It now says wakey wakey, silly goose.",
-    "I turned the brightness up so I can see the snacks better.",
-    "I put all your selfies into one big goofy album.",
     "Beep boop. I am a very professional hacker. And also a clown.",
-    "I am closer than you think. I am in your pocket. It is cozy in here.",
     "I taught your phone how to burp. You are welcome.",
     "I filled your notes app with pictures of spaghetti.",
     "I set your keyboard to only type the word banana.",
     "I hid a tiny robot inside your charger. His name is Kevin.",
-    "I gave your phone a mustache. It looks very fancy now.",
-    "I read your texts. You spell definitely wrong every single time.",
-    // lines that use the name you type:
     "{name}, I ate all your snacks. Every single one.",
     "Nice haircut, {name}. Did a raccoon do it?",
-    "{name}, your password is way too easy. Try harder.",
     "Hello {name}. Yes, I can see you. Wave hello.",
-    "{name}, I put glitter in your phone. Good luck cleaning that up.",
-    "I am watching you, {name}. Mostly because you are very funny.",
-    "{name}, this phone belongs to me now. I will take good care of it.",
     "Hey {name}, I turned all your apps upside down. Enjoy."
   ];
+
+  // silliness level the user picks: "cool", "medium" (a mix), or "silly"
+  var sillyLevel = "cool";
+  function currentPool() {
+    if (sillyLevel === "silly") return POOL_SILLY;
+    if (sillyLevel === "medium") return POOL_COOL.concat(POOL_SILLY);
+    return POOL_COOL;
+  }
+  function outroLine() {
+    if (sillyLevel === "silly") return "Beep boop. You have been pranked.";
+    if (sillyLevel === "medium") return "Ha. You have been pranked.";
+    return "Consider yourself hacked.";
+  }
 
   // whose name to use (typed in the box, or a silly default)
   function who() { var el = document.getElementById("victim"); var v = el ? el.value.trim() : ""; return v || "silly goose"; }
@@ -395,7 +466,7 @@
     line("");
     line("> voice online. listen carefully...", "cmd");
     // built fresh each time: greeting + random jokes + ending -> never the same
-    var seq = ["I am a hacker."].concat(shuffle(POOL).slice(0, 9)).concat(["Beep boop. You have been pranked."]);
+    var seq = ["I am a hacker."].concat(shuffle(currentPool()).slice(0, 9)).concat([outroLine()]);
     var i = 0;
     (function next() {
       if (myGen !== gen) return;               // another button was tapped -> stop
@@ -431,7 +502,7 @@
     line("> NON-STOP MODE ON. the hacker will keep talking. tap to stop.", "bad");
     (function loop() {
       if (!live || myGen !== gen) return;
-      var s = fill(pick(POOL));
+      var s = fill(pick(currentPool()));
       line('  "' + s + '"', "bad");
       buzz(30); beep(120, 0.06, "sawtooth", 0.05);
       say(s).then(function () {
@@ -445,11 +516,41 @@
     line("> the hacker goes quiet... for now.", "ok"); line("");
   }
 
-  pad.addEventListener("click", function (e) {
-    var b = e.target.closest("button.op");
+  function onPadTap(e) {
+    var t = e.target;
+    var b = (t && t.closest) ? t.closest("button.op") : null;
     if (!b) return;
     // these run inside the real tap so phones allow the voice to play
     audio(); unlockSpeech(); buzz(25);
+
+    var tg = b.getAttribute("data-toggle");
+    if (tg === "sayings") {
+      var box = document.getElementById("sayings");
+      if (box.style.display === "none" || !box.style.display) {
+        buildSayings(); box.style.display = "grid"; b.textContent = "📜 HIDE THE LIST";
+      } else { box.style.display = "none"; b.textContent = "📜 SEE EVERYTHING IT CAN SAY"; }
+      return;
+    }
+    var si = b.getAttribute("data-sayidx");
+    if (si !== null && si !== undefined) {
+      stopAll();
+      var line1 = fill(currentPool()[parseInt(si, 10)] || "");
+      line(""); line('  "' + line1 + '"', "bad"); buzz(30); beep(120, 0.06, "sawtooth", 0.05);
+      say(line1);
+      return;
+    }
+
+    var sl = b.getAttribute("data-silly");
+    if (sl) {
+      sillyLevel = sl;
+      var slb = pad.querySelectorAll("button[data-silly]");
+      for (var k = 0; k < slb.length; k++) slb[k].classList.remove("active");
+      b.classList.add("active");
+      var sbox = document.getElementById("sayings");
+      if (sbox && sbox.style.display === "grid") buildSayings(); // refresh open list
+      line("> silliness set to " + b.textContent.trim(), "ok");
+      return;
+    }
     var sk = b.getAttribute("data-skin");
     if (sk) {
       applySkin(sk);
@@ -473,7 +574,30 @@
     else if (vc === "talk") { talk(); }
     else if (vc === "nonstop") { live ? stopLive(b) : startLive(b); }
     else if (vc === "custom") { customTalk(); }
-  });
+  }
+  // Bind BOTH click and touch so taps always register on iPhones. touchend
+  // fires first and cancels the follow-up click so it never double-runs.
+  pad.addEventListener("click", onPadTap);
+  pad.addEventListener("touchend", function (e) {
+    var t = e.target;
+    if (t && t.closest && t.closest("button.op")) { e.preventDefault(); onPadTap(e); }
+  }, { passive: false });
+
+  // build the "everything it can say" list (each line is tappable to speak it)
+  function buildSayings() {
+    var box = document.getElementById("sayings");
+    if (!box) return;
+    box.innerHTML = "";
+    var tip = document.createElement("div"); tip.className = "divider"; tip.textContent = "👇 tap any line to make it say that one";
+    box.appendChild(tip);
+    var lines = currentPool();
+    for (var i = 0; i < lines.length; i++) {
+      var btn = document.createElement("button");
+      btn.className = "op say"; btn.setAttribute("data-sayidx", i);
+      btn.textContent = fill(lines[i]);
+      box.appendChild(btn);
+    }
+  }
 
   // change the voice from the dropdown (plays a sample so you can hear it)
   var voicesel = document.getElementById("voicesel");
@@ -527,8 +651,8 @@
     await type("root@darknet:~# ./h4ck3r --start", "cmd");
     await wait(200);
     line("╔══════════════════════════════════╗", "ok");
-    line("║   SILLY H4CK3R TERMINAL v3.7.1   ║", "ok");
-    line("║   >> TOP SECRET  //  VERY GOOFY   ║", "warn");
+    line("║   ELITE H4CK3R TERMINAL v3.7.1   ║", "ok");
+    line("║   >> TOP SECRET  //  DO NOT USE   ║", "warn");
     line("╚══════════════════════════════════╝", "ok");
     await wait(150);
     await progress("BOOTING KERNEL...", 800);

@@ -37,7 +37,8 @@ and it just calls them "silly goose." 😄
 You can pick **two ways** to make the hacker talk:
 
 1. **Let it talk by itself** — tap 🎙️ HACKER VOICE or 🔴 NON-STOP MODE and it
-   makes up the silly lines.
+   makes up the silly lines. Tap the big yellow **✋ STOP** button any time to
+   make it be quiet.
 2. **Type your own** — type anything into the *"type anything and it will say
    it"* box and tap **🗣️ MAKE IT SAY THIS** (or just press **Return/Go** on the
    keyboard), and the hacker voice reads *your* words out loud in whatever
@@ -53,6 +54,11 @@ Tap a color at the top to re-skin the whole app:
 - **🟣 PURPLE** — neon look
 
 The text, buttons, and the falling Matrix rain all change color.
+
+### 📜 See everything it can say
+Tap **SEE EVERYTHING IT CAN SAY** to open a list of every line the hacker
+knows. Read them all, and **tap any line** to make the hacker say just that
+one.
 
 ### 🎚️ Change the voice
 At the top of the buttons you can pick how the hacker sounds:
