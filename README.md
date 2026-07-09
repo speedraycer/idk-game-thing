@@ -25,7 +25,14 @@ Two big buttons:
 Everything it says is silly and friendly — snacks, pizzas, and potatoes.
 **Nothing scary, no threats, nothing mean.**
 
-The jokes are **shuffled every time**, so it's never the exact same speech twice.
+The lines are **randomized every time** — a random opening, random lines, and a
+random ending — so it's never the exact same speech twice.
+
+### 😎 Silliness level
+Pick the vibe with **😎 COOL / 😏 MEDIUM / 🤪 SILLY**:
+- **COOL** — a confident, believable hacker (default)
+- **MEDIUM** — a mix of cool and goofy
+- **SILLY** — full goofball (snacks, pizzas, potatoes)
 
 ### 👤 Type their name (new!)
 There's a **name box** at the top. Type your cousin's name (like *Jake*) and the
@@ -45,15 +52,6 @@ You can pick **two ways** to make the hacker talk:
    character voice you picked. It works even while the hacker is already
    talking — it just interrupts and says your message.
 
-### 🎨 Change the look (more than one interface!)
-Tap a color at the top to re-skin the whole app:
-
-- **🟢 GREEN** — classic hacker terminal
-- **🔴 RED** — danger/alarm mode
-- **🔵 BLUE** — icy cyber look
-- **🟣 PURPLE** — neon look
-
-The text, buttons, and the falling Matrix rain all change color.
 
 ### 📜 See everything it can say
 Tap **SEE EVERYTHING IT CAN SAY** to open a list of every line the hacker
