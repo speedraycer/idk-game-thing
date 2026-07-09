@@ -793,22 +793,27 @@
     prevPix = new Uint8ClampedArray(d);
     return { color: colorName(r, g, b), brightness: bright, motion: motion };
   }
+  function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+  var lastColor = null;
+  // Generates a fresh roast about whatever it currently sees (mixes in the rage
+  // generator), so it's rarely the same line twice and reacts to new targets.
   function camComment(a) {
     if (!a) return "I can't see anything. Fix the camera.";
-    if (a.brightness < 42) return pick(["Turn on a light. I can't roast what I can't see.", "It's too dark. Scared to show your face?"]);
-    if (a.brightness > 238) return "Way too bright. Are you trying to blind me?";
-    if (a.motion > 26) return pick(["I saw that. Sit still.", "Stop moving, I'm trying to roast you.", "Nice dodge. Still losing though.", "Twitchy much? Calm down."]);
-    var col = a.color;
-    return pick([
-      "That " + col + " shirt? Bold choice. Wrong, but bold.",
-      "Nice " + col + " shirt. Did you lose a bet?",
-      "Who let you wear " + col + "?",
-      col + "? On purpose? Really?",
-      "I can see that " + col + " from space. Rough look.",
-      "That " + col + " is doing you zero favors.",
-      "Whoever picked that " + col + " owes you an apology.",
-      "Ah, a " + col + " enjoyer. Explains a lot."
-    ]);
+    if (a.brightness < 42) return pick(["Turn on a light. I can't roast what I can't see.", "It's too dark. Scared to show your face?", "Lights on, coward."]);
+    if (a.brightness > 238) return pick(["Way too bright. Are you trying to blind me?", "Turn it down, I'm getting flashbanged."]);
+    if (a.motion > 30) return pick(["I saw that. Sit still.", "Stop moving, I'm trying to roast you.", "Nice dodge. Still losing though.", "Twitchy much? Calm down.", "Running away already?"]);
+    var c = a.color;
+    var isNew = (lastColor && c !== lastColor);
+    lastColor = c;
+    var pre = (isNew && Math.random() < 0.5) ? pick(["New target. ", "Ooh, a new one. ", "Next victim. ", "Fresh meat. "]) : "";
+    var obs = pick(["That " + c + " shirt", "That " + c + " fit", "Whatever that " + c + " thing is", "The " + c + " look", c + " on you"]);
+    var verdict = pick([" is a crime.", " is rough.", " ain't it.", " is a bold choice. Wrong, but bold.", "? Who approved that?", " is doing you zero favors.", " is why you keep losing.", "? Yikes.", " needs to be studied. Badly."]);
+    var mode = rnd(4), body;
+    if (mode === 0) body = obs + verdict;
+    else if (mode === 1) body = obs + ". " + rageLine();
+    else if (mode === 2) body = "Ah, a " + c + " enjoyer. " + rageLine();
+    else body = rageLine(); // straight rage, ignores the color
+    return fill(cap(pre + body));
   }
   var watching = false, watchTimer = null;
   function stopWatch() {
