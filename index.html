@@ -49,7 +49,7 @@
   #pad {
     display: grid; grid-template-columns: 1fr; gap: 10px; padding: 12px 14px 18px;
     border-top: 1px solid var(--gd); background: rgba(0,10,0,.55);
-    flex: 0 0 auto; max-height: 62vh; overflow-y: auto; -webkit-overflow-scrolling: touch;
+    flex: 0 0 auto; max-height: 62vh; overflow-y: auto;
   }
   button.op {
     appearance: none; background: rgba(0,40,10,.6); color: var(--g);
@@ -599,13 +599,9 @@
     else if (vc === "nonstop") { live ? stopLive(b) : startLive(b); }
     else if (vc === "custom") { customTalk(); }
   }
-  // Bind BOTH click and touch so taps always register on iPhones. touchend
-  // fires first and cancels the follow-up click so it never double-runs.
+  // Plain click delegation — reliable on iPhone for real <button> elements and
+  // does not interfere with scrolling the panel.
   pad.addEventListener("click", onPadTap);
-  pad.addEventListener("touchend", function (e) {
-    var t = e.target;
-    if (t && t.closest && t.closest("button.op")) { e.preventDefault(); onPadTap(e); }
-  }, { passive: false });
 
   // build the "everything it can say" list (each line is tappable to speak it)
   function buildSayings() {
