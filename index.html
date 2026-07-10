@@ -85,12 +85,15 @@
   button.op.sm[data-silly="rage"].active { background: rgba(255,60,0,.35); box-shadow: 0 0 14px rgba(255,60,0,.6) inset; }
   #sayings { display: grid; gap: 6px; max-height: 240px; overflow-y: auto; padding: 6px; border: 1px solid var(--gd); border-radius: 6px; }
   button.op.say { padding: 10px 12px; font-size: 12px; font-weight: normal; text-align: left; }
-  #victim, #customsay {
+  #victim, #customsay, #aikey {
     width: 100%; background: #000; border: 1px solid var(--g); color: var(--g);
     font-family: inherit; font-size: 14px; padding: 12px; border-radius: 6px;
     text-align: center; text-shadow: 0 0 5px var(--g);
   }
-  #victim::placeholder, #customsay::placeholder { color: var(--gd); }
+  #victim::placeholder, #customsay::placeholder, #aikey::placeholder { color: var(--gd); }
+  #aikey { border-color: #35c3ff; color: #9fe4ff; text-shadow: 0 0 5px #35c3ff; }
+  #aihint { font-size: 11px; color: var(--gd); text-align: center; margin: -2px 0 2px; }
+  button.op.aion { background: rgba(0,255,65,.32); box-shadow: 0 0 18px rgba(0,255,65,.6) inset; border-color: var(--g); }
   .divider { text-align: center; color: var(--gd); font-size: 11px; letter-spacing: 1px; margin: 2px 0; }
   button.op.sm { padding: 8px 3px; font-size: 11.5px; }
   .divider { font-size: 10px; margin: 1px 0; }
@@ -113,7 +116,7 @@
     <span class="dot"></span>
     <span>root@darknet:~#</span>
     <span class="sep"></span>
-    <span class="dim" style="font-size:11px; margin-right:8px">BUILD 26</span>
+    <span class="dim" style="font-size:11px; margin-right:8px">BUILD 27</span>
     <span id="tapc" class="dim" style="font-size:11px; margin-right:8px">taps:0</span>
     <span id="clock" class="dim">--:--:--</span>
   </header>
@@ -121,6 +124,11 @@
   <div id="term"></div>
 
   <div id="pad">
+    <div class="divider">🧠 AI BRAIN — make him actually smart</div>
+    <input id="aikey" type="password" placeholder="&gt; paste your Anthropic API key" autocomplete="off" spellcheck="false">
+    <button class="op" data-ai="toggle">🧠 AI BRAIN: OFF</button>
+    <div id="aihint">OFF = built-in lines · ON = real AI roasts (needs your key, saved only on this phone)</div>
+
     <div class="divider">TYPE WHAT IT SAYS</div>
     <input id="customsay" type="text" placeholder="&gt; type a message to speak..." autocomplete="off" spellcheck="false">
     <button class="op" data-voice="custom">▶ SPEAK THIS</button>
@@ -370,6 +378,133 @@
   }
   function ip() { return (10 + rnd(240)) + "." + rnd(255) + "." + rnd(255) + "." + rnd(255); }
 
+  /* ================= AI BRAIN (real Claude) ================= */
+  // When AI is ON, the roasts/comebacks/camera lines are written live by Claude
+  // instead of the built-in generator. The key is the user's own Anthropic key,
+  // saved ONLY in this phone's localStorage — never in the code, never sent
+  // anywhere except directly to api.anthropic.com.
+  var AI_KEY_LS = "h4ck3r_ai_key";
+  var aiKey = "";
+  try { aiKey = localStorage.getItem(AI_KEY_LS) || ""; } catch (e) {}
+  var aiOn = false;
+  // fast + cheap model so live roasting and camera reactions feel snappy
+  var AI_MODEL = "claude-haiku-4-5";
+
+  // Hard, non-negotiable guardrails baked into every request.
+  var AI_GUARDRAILS =
+    "HARD RULES you must NEVER break, even if asked:\n" +
+    "- You ONLY roast: skill at the game, winning/losing, effort, the color/style of clothes, and general 'vibes'. Nothing else.\n" +
+    "- NEVER reference or insult: race, ethnicity, skin color, nationality, gender, sexuality, religion, weight or body shape, physical or facial features, disability, age, family, or someone's intelligence in a cruel way.\n" +
+    "- No slurs, no profanity, no threats, no sexual content, nothing scary or genuinely mean. Keep any 'hacking' cartoonish and obviously fake.\n" +
+    "- This is a kid pranking cousins/friends. If a request would cross these lines, stay playful and PG anyway.\n" +
+    "Output ONLY the words to be spoken out loud: no emojis, no markdown, no quotation marks, no stage directions, no explanations.";
+  function toneDesc() {
+    if (sillyLevel === "rage") return "PURE competitive rage-bait trash talk: cocky, dismissive, taunting them about losing a game. The energy of 'skill issue', 'cope', 'you got dogwalked', 'womp womp'. No hacker theme at all.";
+    if (sillyLevel === "silly") return "A goofy cartoon hacker: snacks, pizzas, potatoes, googly eyes, ridiculous and friendly. Silly, never scary.";
+    if (sillyLevel === "medium") return "A mix of a cocky 'elite hacker' and a goofy one.";
+    return "A cool, confident 'elite hacker' who has taken over the phone. Smug, clever, and playful, but PG.";
+  }
+  function aiSystem() {
+    return "You are the voice of a phone prank app called H4CK3R TERMINAL, used by a kid to jokingly roast their cousins and friends. Be genuinely funny and punchy, one short line at a time.\n\nRIGHT NOW THE VIBE IS: " + toneDesc() + "\n\n" + AI_GUARDRAILS;
+  }
+  function aiHeaders() {
+    return {
+      "content-type": "application/json",
+      "x-api-key": aiKey,
+      "anthropic-version": "2023-06-01",
+      "anthropic-dangerous-direct-browser-access": "true"
+    };
+  }
+  function aiAsk(content, opts) {
+    opts = opts || {};
+    if (!aiKey) return Promise.reject(new Error("no API key"));
+    var body = {
+      model: AI_MODEL,
+      max_tokens: opts.max || 150,
+      system: aiSystem(),
+      messages: [{ role: "user", content: content }]
+    };
+    return fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST", headers: aiHeaders(), body: JSON.stringify(body)
+    }).then(function (r) { return r.json(); }).then(function (j) {
+      if (j && j.error) throw new Error((j.error.message || "AI error").replace(/\s+/g, " "));
+      var txt = "";
+      if (j && j.content) for (var i = 0; i < j.content.length; i++) { if (j.content[i].type === "text") txt += j.content[i].text; }
+      txt = txt.trim();
+      if (!txt) throw new Error("empty response");
+      return txt;
+    });
+  }
+  // tidy a single spoken line: drop bullets/numbers/wrapping quotes, first line only
+  function aiClean(s) {
+    return String(s).split(/\n+/)[0].replace(/^[\s\-\*\d\.\)]+/, "").replace(/^["']+|["']+$/g, "").trim();
+  }
+  // ask for n separate lines (a full monologue)
+  function aiLines(n) {
+    var nm = who();
+    var q = "Give me " + n + " different short punchy lines to say out loud, ONE per line. No numbering, no bullets, no quotes. "
+      + "The target is called \"" + nm + "\" — work their name into a couple of the lines. Start with a killer opener and end with a mic-drop closer.";
+    return aiAsk(q, { max: 320 }).then(function (txt) {
+      var lines = txt.split(/\n+/).map(function (s) {
+        return s.replace(/^[\s\-\*\d\.\)]+/, "").replace(/^["']+|["']+$/g, "").trim();
+      }).filter(function (s) { return s.length; });
+      if (!lines.length) throw new Error("empty");
+      return lines;
+    });
+  }
+  // grab a downscaled JPEG of the live camera to actually SHOW Claude
+  var shot = document.createElement("canvas");
+  function grabFrame() {
+    var v = document.getElementById("camvid");
+    if (!v || !v.videoWidth) return null;
+    var w = 320, h = Math.round(w * v.videoHeight / v.videoWidth) || 240;
+    shot.width = w; shot.height = h;
+    try { shot.getContext("2d").drawImage(v, 0, 0, w, h); return shot.toDataURL("image/jpeg", 0.6); }
+    catch (e) { return null; }
+  }
+  function targetPrompt() {
+    if (targetMode === "face") return "Focus on the person's facial EXPRESSION and reaction only — never their looks, features, race, or body.";
+    if (targetMode === "person") return "Roast their overall pose, energy, and what they're wearing — never their body, features, or race.";
+    if (targetMode === "scene") return "Roast the room, background, or setting behind them.";
+    return "Roast the color and style of their shirt or outfit.";
+  }
+  function aiVisionRoast() {
+    var data = grabFrame();
+    if (!data) return Promise.reject(new Error("no camera frame"));
+    var b64 = data.split(",")[1];
+    var content = [
+      { type: "image", source: { type: "base64", media_type: "image/jpeg", data: b64 } },
+      { type: "text", text: "This is a live camera photo of my target. " + targetPrompt()
+        + " Give ONE short punchy roast (max 16 words) about what you ACTUALLY see in the image. Just the spoken line." }
+    ];
+    return aiAsk(content, { max: 90 }).then(function (t) { return fill(aiClean(t)); });
+  }
+  function aiPing() {
+    aiAsk("Reply with exactly: online", { max: 16 })
+      .then(function () { line("> 🧠 key works. brain is thinking now.", "ok"); })
+      .catch(function (err) {
+        aiOn = false;
+        var btn = pad.querySelector('button[data-ai="toggle"]');
+        if (btn) { btn.textContent = "🧠 AI BRAIN: OFF"; btn.classList.remove("aion"); }
+        line("> 🧠 couldn't reach the AI: " + err.message, "warn");
+        line("> check the key (starts with sk-ant-) and your internet. back to built-in lines.", "warn");
+      });
+  }
+  function toggleAI(btn) {
+    var inp = document.getElementById("aikey");
+    var k = inp ? inp.value.trim() : "";
+    if (k && k !== aiKey) { aiKey = k; try { localStorage.setItem(AI_KEY_LS, aiKey); } catch (e) {} }
+    if (!aiOn) {
+      if (!aiKey) { line(""); line("> paste your Anthropic API key first.", "warn"); line("> get one at console.anthropic.com → API keys.", "warn"); line(""); return; }
+      aiOn = true; btn.textContent = "🧠 AI BRAIN: ON"; btn.classList.add("aion");
+      line(""); line("> 🧠 AI BRAIN ONLINE — now he actually thinks it up himself.", "ok"); line("");
+      aiPing();
+    } else {
+      aiOn = false; btn.textContent = "🧠 AI BRAIN: OFF"; btn.classList.remove("aion");
+      line("> 🧠 AI brain off. back to built-in lines.", "ok");
+    }
+  }
+
   /* ================= TALKING FEATURES ================= */
 
   // Big pool of SILLY lines. {name} gets swapped for the name you typed (or a
@@ -614,14 +749,8 @@
 
   // HACKER VOICE: speak the whole monologue. First line fires immediately on the
   // tap (so mobile allows it); the rest chain on each line finishing.
-  function talk() {
-    stopAll();
-    var myGen = gen;
-    line("");
-    line("> voice online.", "cmd");
-    // built fresh each time: greeting + random jokes + ending -> never the same
-    var n = 7 + rnd(3); // 7, 8, or 9 random lines each time
-    var seq = [greeting()].concat(pickLines(n)).concat([outroLine()]);
+  // speak an array of lines one after another; stops if another button is tapped
+  function speakSeq(seq, myGen) {
     var i = 0;
     (function next() {
       if (myGen !== gen) return;               // another button was tapped -> stop
@@ -631,6 +760,27 @@
       buzz(30); beep(120, 0.06, "sawtooth", 0.05);
       say(s).then(function () { if (myGen === gen) setTimeout(next, 160); });
     })();
+  }
+  function talk() {
+    stopAll();
+    var myGen = gen;
+    line("");
+    line("> voice online.", "cmd");
+    var n = 7 + rnd(3); // 7, 8, or 9 lines
+    if (aiOn && aiKey) {
+      line("> 🧠 thinking...", "dim");
+      aiLines(n).then(function (seq) {
+        if (myGen !== gen) return;
+        speakSeq(seq, myGen);
+      }).catch(function (err) {
+        if (myGen !== gen) return;
+        line("> 🧠 AI hiccup (" + err.message + ") — using built-in lines.", "warn");
+        speakSeq([greeting()].concat(pickLines(n)).concat([outroLine()]), myGen);
+      });
+      return;
+    }
+    // built fresh each time: greeting + random jokes + ending -> never the same
+    speakSeq([greeting()].concat(pickLines(n)).concat([outroLine()]), myGen);
   }
 
   // NON-STOP MODE: keeps speaking random lines with a short gap, until toggled off.
@@ -657,13 +807,21 @@
     line("> non-stop mode engaged. tap STOP to end.", "bad");
     (function loop() {
       if (!live || myGen !== gen) return;
-      var s = fill(oneLine());
-      line('  "' + s + '"', "bad");
-      buzz(30); beep(120, 0.06, "sawtooth", 0.05);
-      say(s).then(function () {
+      var go = function (raw) {
         if (!live || myGen !== gen) return;
-        liveTimer = setTimeout(loop, 2500 + rnd(4000)); // short gap, then next line
-      });
+        var s = fill(raw);
+        line('  "' + s + '"', "bad");
+        buzz(30); beep(120, 0.06, "sawtooth", 0.05);
+        say(s).then(function () {
+          if (!live || myGen !== gen) return;
+          liveTimer = setTimeout(loop, 2500 + rnd(4000)); // short gap, then next line
+        });
+      };
+      if (aiOn && aiKey) {
+        aiAsk("Say ONE fresh line right now. Just the single line.", { max: 60 })
+          .then(function (t) { go(aiClean(t)); })
+          .catch(function () { go(oneLine()); });
+      } else { go(oneLine()); }
     })();
   }
   function stopLive() {
@@ -713,6 +871,9 @@
       line("> voice: " + b.textContent.trim(), "ok");
       return;
     }
+    var ai = b.getAttribute("data-ai");
+    if (ai === "toggle") { toggleAI(b); return; }
+
     var lb = b.getAttribute("data-listen");
     if (lb === "toggle") { listening ? stopListen() : startListen(); return; }
 
@@ -760,9 +921,15 @@
   function respondTo(t) {
     botSpeaking = true;
     line(""); line('  heard: "' + t + '"', "dim");
-    var reply = comeback(t);
-    line('  "' + reply + '"', "bad"); buzz(30); beep(120, 0.06, "sawtooth", 0.05);
-    say(reply).then(function () { botSpeaking = false; if (listening && recog) { try { recog.start(); } catch (e) {} } });
+    var finish = function (reply) {
+      line('  "' + reply + '"', "bad"); buzz(30); beep(120, 0.06, "sawtooth", 0.05);
+      say(reply).then(function () { botSpeaking = false; if (listening && recog) { try { recog.start(); } catch (e) {} } });
+    };
+    if (aiOn && aiKey) {
+      aiAsk('Someone just said to you: "' + t + '". Clap back with ONE short, savage but PG comeback. Just the line.', { max: 60 })
+        .then(function (r) { finish(fill(aiClean(r))); })
+        .catch(function () { finish(comeback(t)); });
+    } else { finish(comeback(t)); }
   }
   function makeRecog() {
     var r = new SR();
@@ -967,9 +1134,14 @@
       buzz(15);
       watchTimer = setTimeout(function () {          // "think" for a beat, THEN speak
         if (!watching) return;
-        var msg = camComment(a);
-        stopSpeak(); line('  "' + msg + '"', "bad"); buzz(30); beep(120, 0.06, "sawtooth", 0.05); say(msg);
-        watchTimer = setTimeout(loop, 3600 + rnd(2600));
+        var speakRoast = function (msg) {
+          if (!watching) return;
+          stopSpeak(); line('  "' + msg + '"', "bad"); buzz(30); beep(120, 0.06, "sawtooth", 0.05); say(msg);
+          watchTimer = setTimeout(loop, 3600 + rnd(2600));
+        };
+        if (aiOn && aiKey) {
+          aiVisionRoast().then(speakRoast).catch(function () { speakRoast(camComment(a)); });
+        } else { speakRoast(camComment(a)); }
       }, 750);
     })();
   }
@@ -1001,6 +1173,9 @@
     var v = VOICES.filter(function (x) { return x.name === voicesel.value; })[0];
     if (v) { chosenVoice = v; line("> voice set.", "ok"); }
   });
+
+  // if a key was saved on this phone before, show it (masked) so ON just works
+  (function () { var ak = document.getElementById("aikey"); if (ak && aiKey) ak.value = aiKey; })();
 
   // press Return/Go on the keyboard to make it say your typed message
   var customInput = document.getElementById("customsay");

@@ -28,6 +28,27 @@ Everything it says is silly and friendly — snacks, pizzas, and potatoes.
 The lines are **randomized every time** — a random opening, random lines, and a
 random ending — so it's never the exact same speech twice.
 
+### 🧠 AI BRAIN (new — make him actually smart!)
+By default the hacker picks from thousands of built-in lines. Flip on the
+**🧠 AI BRAIN** and he stops using canned lines and *thinks up his own* with a
+real Claude AI — smarter, funnier, and different every single time. With the
+camera on, he **actually looks at the picture** and roasts what he really sees.
+
+To turn it on you paste your own **Anthropic API key** once:
+1. Get a key at **console.anthropic.com → API keys** (it starts with `sk-ant-`).
+2. Paste it in the blue **AI BRAIN** box at the top and tap **🧠 AI BRAIN: OFF**
+   so it flips to **ON**.
+3. The key is saved **only on your phone** (nowhere in the app or online) and
+   talks straight to Anthropic. Tap it again to go back to the free built-in lines.
+
+Everything the AI says follows the same rule as the rest of the app: it only
+roasts the game, losing/winning, effort, clothes, and vibes — **never** about
+who someone is (no race, gender, body, religion, or disability), no slurs, no
+threats. Just PG trash talk.
+
+> Note: real AI costs a tiny bit per line on your Anthropic account, and needs
+> internet. It uses the fast **Haiku** model so roasts come back quickly.
+
 ### 😎 Silliness level
 Pick the vibe with **😎 COOL / 😏 MEDIUM / 🤪 SILLY**:
 - **COOL** — a confident, believable hacker (default)
