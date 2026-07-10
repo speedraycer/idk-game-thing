@@ -28,10 +28,10 @@
     color: #ff2b2b; font-weight: bold; font-size: 13px; letter-spacing: 1px; z-index: 4;
     text-shadow: 0 0 6px #ff2b2b; animation: blink 1s infinite; }
   #reticle { position: fixed; z-index: 3; display: none; pointer-events: none; border: 2px solid var(--r);
-    box-shadow: 0 0 12px var(--r), inset 0 0 12px rgba(255,34,34,.3); border-radius: 4px; transition: all .25s ease; }
+    box-shadow: 0 0 12px var(--r), inset 0 0 12px rgba(255,34,34,.3); border-radius: 4px; transition: all .2s ease; }
   #reticle.on { display: block; }
-  #reticle::before { content: "TARGET"; position: absolute; top: -16px; left: 0; font-size: 10px; color: var(--r);
-    text-shadow: 0 0 6px var(--r); letter-spacing: 1px; }
+  #retlabel { position: absolute; top: -16px; left: 0; font-size: 10px; color: var(--r);
+    text-shadow: 0 0 6px var(--r); letter-spacing: 1px; white-space: nowrap; font-weight: bold; }
   #app {
     position: fixed; inset: 0; z-index: 1; display: flex; flex-direction: column;
     padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
@@ -58,14 +58,14 @@
   .cursor { display: inline-block; width: 9px; height: 15px; background: var(--g);
     vertical-align: -2px; box-shadow: 0 0 8px var(--g); animation: blink .8s step-end infinite; }
   #pad {
-    display: grid; grid-template-columns: 1fr; gap: 10px; padding: 12px 14px 18px;
+    display: grid; grid-template-columns: 1fr; gap: 7px; padding: 10px 12px 16px;
     border-top: 1px solid var(--gd); background: rgba(0,10,0,.55);
-    flex: 0 0 auto; max-height: 62vh; overflow-y: auto;
+    flex: 0 0 auto; max-height: 64vh; overflow-y: auto;
   }
   button.op {
     appearance: none; background: rgba(0,40,10,.6); color: var(--g);
-    border: 1px solid var(--g); border-radius: 6px; padding: 16px 8px;
-    font-family: inherit; font-size: 15px; font-weight: bold; letter-spacing: .5px;
+    border: 1px solid var(--g); border-radius: 6px; padding: 10px 8px;
+    font-family: inherit; font-size: 13px; font-weight: bold; letter-spacing: .4px;
     text-shadow: 0 0 6px var(--g); box-shadow: 0 0 10px rgba(0,255,65,.15) inset; cursor: pointer;
     transition: transform .06s, background .1s; touch-action: manipulation;
   }
@@ -92,7 +92,8 @@
   }
   #victim::placeholder, #customsay::placeholder { color: var(--gd); }
   .divider { text-align: center; color: var(--gd); font-size: 11px; letter-spacing: 1px; margin: 2px 0; }
-  button.op.sm { padding: 11px 4px; font-size: 13px; }
+  button.op.sm { padding: 8px 3px; font-size: 11.5px; }
+  .divider { font-size: 10px; margin: 1px 0; }
   button.op.sm.active { background: rgba(0,255,65,.32); box-shadow: 0 0 14px rgba(0,255,65,.55) inset; }
   #voicehint { font-size: 11px; color: var(--gd); text-align: center; margin: -2px 0 2px; }
   .barwrap { margin: 4px 0; }
@@ -104,7 +105,7 @@
 
 <canvas id="matrix"></canvas>
 <div id="cam"><video id="camvid" autoplay playsinline muted></video></div>
-<div id="reticle"></div>
+<div id="reticle"><span id="retlabel">TARGET</span></div>
 <div class="scan"></div>
 
 <div id="app">
@@ -112,7 +113,7 @@
     <span class="dot"></span>
     <span>root@darknet:~#</span>
     <span class="sep"></span>
-    <span class="dim" style="font-size:11px; margin-right:8px">BUILD 25</span>
+    <span class="dim" style="font-size:11px; margin-right:8px">BUILD 26</span>
     <span id="tapc" class="dim" style="font-size:11px; margin-right:8px">taps:0</span>
     <span id="clock" class="dim">--:--:--</span>
   </header>
@@ -156,6 +157,7 @@
     <div class="divider">SPY CAM</div>
     <button class="op" data-cam="toggle">📷 CAMERA ON</button>
     <button class="op sm" data-cam="flip">🔄 FLIP CAMERA</button>
+    <button class="op sm" data-cam="mode">🎯 TARGET: SHIRT</button>
     <button class="op" data-cam="roast">👁 WATCH &amp; ROAST</button>
 
     <div class="divider">LINE LIBRARY</div>
@@ -526,7 +528,12 @@
     "you're stuck in the lobby of life", "you got put in the dryer", "you're getting sat down",
     "you're a bench decoration", "you're the final form of losing", "you can't read the room or the game",
     "you're a participation certificate", "you got sent to the shadow realm", "you're a practice bot",
-    "you're the appetizer, not the main event", "you're getting hard-reset", "you couldn't win in creative mode"
+    "you're the appetizer, not the main event", "you're getting hard-reset", "you couldn't win in creative mode",
+    "you're a bot on easy", "you're the practice round", "you couldn't win a participation contest",
+    "you're a walking rematch request", "you're the reason skill-based matchmaking exists",
+    "you fold at the first sign of trouble", "you're a discount opponent", "you're not even a warmup anymore",
+    "you're getting outscored by the tutorial", "you couldn't win offline", "you're a guaranteed dub for me",
+    "you're the easiest lobby I've had all week", "you tilt if someone breathes near you"
   ];
   var R_BRAG = [
     "I'm not even warmed up", "I could beat you blindfolded", "I'm not even trying", "I do this in my sleep",
@@ -712,6 +719,7 @@
     var camb = b.getAttribute("data-cam");
     if (camb === "toggle") { toggleCam(); return; }
     if (camb === "flip") { flipCam(); return; }
+    if (camb === "mode") { cycleMode(b); return; }
     if (camb === "roast") { watching ? stopWatch() : startWatch(b); return; }
 
     var vc = b.getAttribute("data-voice");
@@ -849,14 +857,18 @@
     if (r > 55 && r >= g && g >= b && (r - b) > 8 && (mx - mn) < 90 && mn > 18) return true;
     return false;
   }
-  function updateTarget(person, minx, miny, maxx, maxy) {
+  var MODES = ["shirt", "face", "person", "scene"];
+  var targetMode = "shirt";
+  function updateTarget(show, minx, miny, maxx, maxy, col) {
     var ret = document.getElementById("reticle");
     if (!ret) return;
-    if (!person || !watching) { ret.classList.remove("on"); return; }
+    if (!show || !watching) { ret.classList.remove("on"); return; }
     var l = (minx / 48) * 100, t = (miny / 48) * 100;
-    var w = ((maxx - minx + 1) / 48) * 100, h = ((maxy - miny + 1) / 48) * 100 + 22; // extend down over the torso
-    ret.style.left = l + "%"; ret.style.top = t + "%"; ret.style.width = w + "%";
-    ret.style.height = Math.min(100 - t, h) + "%";
+    var w = ((maxx - minx) / 48) * 100, h = ((maxy - miny) / 48) * 100;
+    ret.style.left = l + "%"; ret.style.top = t + "%";
+    ret.style.width = Math.max(7, w) + "%"; ret.style.height = Math.max(7, Math.min(100 - t, h)) + "%";
+    var lab = document.getElementById("retlabel");
+    if (lab) lab.textContent = (col ? col.toUpperCase() + " " : "") + targetMode.toUpperCase();
     ret.classList.add("on");
   }
   function analyzeFrame() {
@@ -864,33 +876,46 @@
     if (!v || !v.videoWidth) return null;
     try { sctx.drawImage(v, 0, 0, 48, 48); } catch (e) { return null; }
     var d; try { d = sctx.getImageData(0, 0, 48, 48).data; } catch (e) { return null; }
-    // 1) find the person via skin pixels -> face location
-    var sx = 0, sy = 0, sc = 0, minx = 48, miny = 48, maxx = 0, maxy = 0;
+    // find the person via skin pixels -> face bounding box
+    var sx = 0, sy = 0, sc = 0, fx0 = 48, fy0 = 48, fx1 = 0, fy1 = 0;
     for (var y = 0; y < 48; y++) for (var x = 0; x < 48; x++) {
       var i = (y * 48 + x) * 4;
-      if (isSkin(d[i], d[i + 1], d[i + 2])) { sx += x; sy += y; sc++; if (x < minx) minx = x; if (x > maxx) maxx = x; if (y < miny) miny = y; if (y > maxy) maxy = y; }
+      if (isSkin(d[i], d[i + 1], d[i + 2])) { sx += x; sy += y; sc++; if (x < fx0) fx0 = x; if (x > fx1) fx1 = x; if (y < fy0) fy0 = y; if (y > fy1) fy1 = y; }
     }
     var person = sc > 12;
+    // pick the region to read + box, based on what it's told to look at
     var x0, x1, y0, y1;
-    if (person) {
+    if (targetMode === "scene" || !person) {
+      if (targetMode === "scene") { x0 = 3; y0 = 3; x1 = 45; y1 = 45; }
+      else { x0 = 12; y0 = 22; x1 = 36; y1 = 42; }                 // fallback center
+    } else if (targetMode === "face") {
+      x0 = fx0; y0 = fy0; x1 = fx1 + 1; y1 = fy1 + 1;
+    } else if (targetMode === "person") {
+      x0 = fx0; y0 = fy0; x1 = fx1 + 1; y1 = Math.min(48, fy1 + 18);
+    } else { // shirt: just below the face
       var cx = sx / sc;
-      y0 = Math.min(46, maxy + 2); y1 = Math.min(48, y0 + 14);      // shirt = just below the face
+      y0 = Math.min(46, fy1 + 2); y1 = Math.min(48, y0 + 14);
       if (y1 - y0 < 4) { y0 = Math.min(40, Math.round(sy / sc) + 8); y1 = Math.min(48, y0 + 8); }
       x0 = Math.max(0, Math.round(cx - 8)); x1 = Math.min(48, Math.round(cx + 8));
-    } else { x0 = 12; x1 = 36; y0 = 22; y1 = 42; }                   // fallback: center
-    // 2) average color of that focused region
+    }
+    // average color of that region
     var r = 0, g = 0, b = 0, c = 0;
     for (var yy = y0; yy < y1; yy++) for (var xx = x0; xx < x1; xx++) { var j = (yy * 48 + xx) * 4; r += d[j]; g += d[j + 1]; b += d[j + 2]; c++; }
     if (!c) c = 1;
     r = Math.round(r / c); g = Math.round(g / c); b = Math.round(b / c);
-    // 3) brightness + motion
     var tot = 0; for (var k = 0; k < d.length; k += 4) tot += (d[k] + d[k + 1] + d[k + 2]) / 3;
     var bright = tot / (d.length / 4);
     var motion = 0;
     if (prevPix) { var s = 0, n = 0; for (var mm = 0; mm < d.length; mm += 16) { s += Math.abs(d[mm] - prevPix[mm]); n++; } motion = s / n; }
     prevPix = new Uint8ClampedArray(d);
-    updateTarget(person, minx, miny, maxx, maxy);
-    return { color: colorName(r, g, b), brightness: bright, motion: motion, person: person };
+    var col = colorName(r, g, b);
+    updateTarget(person || targetMode === "scene", x0, y0, x1, y1, col);
+    return { color: col, brightness: bright, motion: motion, person: person, mode: targetMode };
+  }
+  function cycleMode(btn) {
+    targetMode = MODES[(MODES.indexOf(targetMode) + 1) % MODES.length];
+    btn.textContent = "🎯 TARGET: " + targetMode.toUpperCase();
+    line("> now targeting: " + targetMode + ".", "ok");
   }
   function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
   var lastColor = null;
@@ -898,14 +923,20 @@
   // generator), so it's rarely the same line twice and reacts to new targets.
   function camComment(a) {
     if (!a) return "I can't see anything. Fix the camera.";
-    if (a.person === false && Math.random() < 0.6) return pick(["I don't even see anyone. Come closer so I can roast you.", "Where'd everybody go? Cowards.", "Point me at a face. I dare you.", "Empty chair energy. Sit down so I can cook you."]);
+    if (a.person === false && a.mode !== "scene" && Math.random() < 0.6) return pick(["I don't even see anyone. Come closer so I can roast you.", "Where'd everybody go? Cowards.", "Point me at a face. I dare you.", "Empty chair energy. Sit down so I can cook you."]);
     if (a.brightness < 42) return pick(["Turn on a light. I can't roast what I can't see.", "It's too dark. Scared to show your face?", "Lights on, coward."]);
     if (a.brightness > 238) return pick(["Way too bright. Are you trying to blind me?", "Turn it down, I'm getting flashbanged."]);
     if (a.motion > 30) return pick(["I saw that. Sit still.", "Stop moving, I'm trying to roast you.", "Nice dodge. Still losing though.", "Twitchy much? Calm down.", "Running away already?"]);
     var c = a.color;
     var isNew = (lastColor && c !== lastColor);
     lastColor = c;
-    var pre = (isNew && Math.random() < 0.5) ? pick(["New target. ", "Ooh, a new one. ", "Next victim. ", "Fresh meat. "]) : "";
+    var pre = (isNew && Math.random() < 0.45) ? pick(["New target. ", "Ooh, a new one. ", "Next victim. ", "Fresh meat. "]) : "";
+    // phrasing depends on WHAT it's told to look at
+    if (a.mode === "person") return fill(cap(pre + rageLine()));
+    if (a.mode === "scene") return cap(pre + pick(["that " + c + " background", "that " + c + " room", "all that " + c + " behind you"]) +
+      pick([" is depressing.", " needs a redesign.", " is a whole vibe. A bad one.", " screams give up.", " is doing you no favors either."]));
+    if (a.mode === "face") return cap(pre + pick(["that face is a crime.", "who approved that face?", "that face? yikes.", "not the face — anything but the face.", "that's the face of someone about to lose.", "that expression screams 'I'm losing'.", "put that face away, you're scaring the camera.", "that face needs a rematch with a mirror."]));
+    // default: shirt
     var noun = pick(["that " + c + " shirt", "that " + c + " fit", "that " + c + " outfit", "the " + c + " look", "all that " + c]);
     var forms = [
       cap(noun) + pick([" is a crime.", " is rough.", " ain't it.", " is a bold choice. Wrong, but bold.", " is doing you zero favors.", " is why you keep losing.", " should be illegal.", " needs to be studied. Badly."]),
@@ -931,10 +962,15 @@
     line(""); line("> watching... 👁", "bad");
     (function loop() {
       if (!watching) return;
-      var a = analyzeFrame();
-      var msg = camComment(a);
-      stopSpeak(); line('  "' + msg + '"', "bad"); buzz(30); beep(120, 0.06, "sawtooth", 0.05); say(msg);
-      watchTimer = setTimeout(loop, 4200 + rnd(3000));
+      var a = analyzeFrame();                       // look first
+      line("> scanning " + (a ? (a.mode + " target") : "...") + " ▚▚▚", "dim");
+      buzz(15);
+      watchTimer = setTimeout(function () {          // "think" for a beat, THEN speak
+        if (!watching) return;
+        var msg = camComment(a);
+        stopSpeak(); line('  "' + msg + '"', "bad"); buzz(30); beep(120, 0.06, "sawtooth", 0.05); say(msg);
+        watchTimer = setTimeout(loop, 3600 + rnd(2600));
+      }, 750);
     })();
   }
 
