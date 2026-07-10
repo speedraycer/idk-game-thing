@@ -112,7 +112,7 @@
     <span class="dot"></span>
     <span>root@darknet:~#</span>
     <span class="sep"></span>
-    <span class="dim" style="font-size:11px; margin-right:8px">BUILD 22</span>
+    <span class="dim" style="font-size:11px; margin-right:8px">BUILD 25</span>
     <span id="tapc" class="dim" style="font-size:11px; margin-right:8px">taps:0</span>
     <span id="clock" class="dim">--:--:--</span>
   </header>
@@ -397,6 +397,16 @@
     "I own this device now. All of it.",
     "I slipped past every lock on this phone.",
     "I have full access. Every app, every file.",
+    "I cloned your entire phone in seconds.",
+    "Your firewall folded instantly.",
+    "I have root access. Total control.",
+    "I rewired your notifications for fun.",
+    "I am inside three of your apps right now.",
+    "Your two-factor didn't even slow me down.",
+    "I archived every keystroke you make.",
+    "I am the ghost in your group chat.",
+    "I own your cloud now too.",
+    "I read your drafts. Even the ones you deleted.",
     // lines that use the name you type:
     "{name}. I know everything on this phone now.",
     "Hello {name}. Your phone belongs to me.",
@@ -427,6 +437,16 @@
     "I filled your notes app with pictures of spaghetti.",
     "I set your keyboard to only type the word banana.",
     "I hid a tiny robot inside your charger. His name is Kevin.",
+    "I taught your calculator to lie.",
+    "I set every alarm to 3 AM. Sleep well.",
+    "I turned your flashlight into a disco.",
+    "I renamed all your contacts to Steve.",
+    "I gave your phone a bedtime.",
+    "I replaced your wallpaper with a potato.",
+    "I made autocorrect only suggest the word moist.",
+    "I hid one app. Good luck finding it.",
+    "I subscribed you to nine hundred cat facts.",
+    "I put a tiny hat on your battery icon.",
     "{name}, I ate all your snacks. Every single one.",
     "Nice haircut, {name}. Did a raccoon do it?",
     "Hello {name}. Yes, I can see you. Wave hello.",
@@ -469,36 +489,64 @@
     "Better luck never, {name}."
   ];
 
-  // RAGE generator — mixes an opener + a burn + a tag for 10,000+ combos.
+  // RAGE generator — opener + one or two "you..." clauses (or a brag) + a tag.
+  // Because every clause is a complete "you..." predicate, joining two with
+  // "and" stays grammatical, giving well over a MILLION sensible combos.
   // All PG and about the game/contest, never about who someone is.
-  var RAGE_OPEN = ["", "", "bro, ", "buddy, ", "champ, ", "kid, ", "listen, ", "hey, ", "yo, ", "{name}, ", "{name}, ", "aww {name}, "];
-  var RAGE_CORE = [
-    "you're getting destroyed", "you fell off so hard", "that was a certified L",
-    "you're not even trying", "I'm not even warmed up", "you're playing like it's your first day",
-    "you got cooked", "that was painful to watch", "you're built different, in the worst way",
-    "you're hard stuck", "you're washed", "you peaked in the tutorial", "you're a walking L",
-    "you couldn't win with a guide open", "you're getting carried and still losing",
-    "I could beat you blindfolded", "you're allergic to winning", "you're the reason the team loses",
-    "you're playing like a bot", "you got outplayed at every step", "you're too slow to keep up",
-    "you're throwing this so hard", "you fumbled that badly", "you're down bad", "you're not him",
-    "you're not even top ten in this room", "you had one job and blew it", "you're getting clapped",
-    "you move like you're buffering", "you're stuck on easy mode", "you're a free win",
-    "you make losing look easy", "you couldn't clutch a doorknob", "you're getting sent to the lobby",
-    "you're pressing buttons and hoping", "you're 0 and 100 right now", "you got styled on",
-    "you're a highlight reel for the other team", "you're the definition of skill issue",
-    "you're speedrunning defeat", "you're getting bodied", "you're a participation trophy",
-    "you should uninstall", "you're feeding again", "you play like the controller is unplugged",
-    "you're a bot with extra steps", "you're getting dogwalked", "you're the easiest win all day",
-    "you couldn't beat a loading screen", "you're cooked, well done", "you got sent to voicemail",
-    "you're not built for this", "you're a certified bench warmer", "you peaked in practice mode",
-    "you're allergic to clutching", "you're stuck in bronze forever", "you're a walking participation award",
-    "you're getting tutorialized", "you're the tutorial boss and you still lose"
+  var R_OPEN = ["", "", "", "bro, ", "buddy, ", "champ, ", "kid, ", "listen, ", "hey, ", "yo, ", "look, ",
+    "genuinely, ", "not gonna lie, ", "{name}, ", "{name}, ", "real talk {name}, ", "sorry {name}, "];
+  var R_YOU = [
+    "you're washed", "you fell off so hard", "you got cooked", "you got clapped", "you got dogwalked",
+    "you got styled on", "you got bodied", "you're hard stuck", "you're a walking L", "you're a free win",
+    "you're a bot", "you're not him", "you're not built for this", "you're allergic to winning",
+    "you're stuck on easy mode", "you're speedrunning defeat", "you peaked in the tutorial",
+    "you couldn't win with a guide open", "you couldn't clutch a doorknob", "you couldn't beat a loading screen",
+    "you play like the controller is unplugged", "you move like you're buffering", "you're too slow to keep up",
+    "you're throwing this so hard", "you fumbled that badly", "you're down bad", "you're feeding again",
+    "you should uninstall", "you had one job and blew it", "you're the reason the team loses",
+    "you're getting carried and still losing", "you're 0 and 100 right now", "you make losing look easy",
+    "you're a participation trophy", "you're a certified bench warmer", "you're stuck in bronze forever",
+    "you're the tutorial boss and you still lose", "you're not even top ten in this room",
+    "you're pressing buttons and hoping", "you're a highlight reel for the other team",
+    "you're the definition of skill issue", "you got sent to voicemail", "you got sent to the lobby",
+    "you're cooked, well done", "you're a bot with extra steps", "you're the easiest win all day",
+    "you're playing like it's your first day", "you're built different, in the worst way",
+    "you're a walking participation award", "you're getting outplayed at every step",
+    "you can't win and you know it", "you're not ready for this", "you're a warmup, not a challenge",
+    "you're the final boss of losing", "you couldn't win a coin flip", "you're playing like the lights are off",
+    "you're one and done", "you're a free trial", "you're getting benched", "you're a practice dummy",
+    "you're not passing this level", "you fold under pressure", "you're all thumbs",
+    "you keep losing on purpose, right", "you're on a losing streak for life", "you're getting ratio'd in real life",
+    "you're a glorified spectator", "you're the comic relief", "you couldn't hit water falling out of a boat",
+    "you're a tutorial NPC", "you're the easiest read in the game", "you're getting outclassed", "you can't hang",
+    "you're a whole liability", "you're the weak link", "you're getting hard-carried", "you're out of your depth",
+    "you fold like a lawn chair", "you're a stat pad for the enemy", "you're getting schooled", "you're not on my level",
+    "you're a warm body", "you're basically AFK", "you're getting cooked medium rare", "you're a free kill",
+    "you're the reason there's a mercy rule", "you're getting speedran", "you're a walking tutorial",
+    "you're stuck in the lobby of life", "you got put in the dryer", "you're getting sat down",
+    "you're a bench decoration", "you're the final form of losing", "you can't read the room or the game",
+    "you're a participation certificate", "you got sent to the shadow realm", "you're a practice bot",
+    "you're the appetizer, not the main event", "you're getting hard-reset", "you couldn't win in creative mode"
   ];
-  var RAGE_CLOSE = [". Cope.", ". Stay mad.", ". Womp womp.", ". Skill issue.", ". Take the L.",
-    ". Ratio.", ". Get good.", ". Seethe.", ". Cry about it.", ". Stay pressed.", ". It's rent free.",
-    ".", ".", "."];
+  var R_BRAG = [
+    "I'm not even warmed up", "I could beat you blindfolded", "I'm not even trying", "I do this in my sleep",
+    "I've seen snails move faster than you", "I'm three steps ahead, always", "I could carry you and still win",
+    "I'm rent free in your head", "I'm built for this, you're not", "I didn't even need to try",
+    "I'm the reason you rage quit", "I'm undefeated against you", "I could do this all day",
+    "I already won before we started", "I'm on a different level", "I could win this with my eyes closed",
+    "I've been carrying since round one", "I'm the ceiling, you're the floor", "I don't even remember losing",
+    "I could coach you and you'd still lose", "I'm the final boss you can't beat", "I'm just built for this"
+  ];
+  var R_TAG = [". Cope.", ". Stay mad.", ". Womp womp.", ". Skill issue.", ". Take the L.", ". Ratio.",
+    ". Get good.", ". Seethe.", ". Cry about it.", ". Stay pressed.", ". It's rent free.", ". Embarrassing.",
+    ". Yikes.", ". Devastating.", ". Get bodied.", ". Sit down.", ". Case closed.", ". Anyway.",
+    ".", ".", ".", "."];
   function rageLine() {
-    var s = pick(RAGE_OPEN) + pick(RAGE_CORE) + pick(RAGE_CLOSE);
+    var op = pick(R_OPEN), body, roll = rnd(10);
+    if (roll < 3) { var a = pick(R_YOU), b2 = pick(R_YOU); var guard = 0; while (b2 === a && guard++ < 5) b2 = pick(R_YOU); body = a + " and " + b2; }
+    else if (roll < 8) body = pick(R_YOU);
+    else body = pick(R_BRAG);
+    var s = op + body + pick(R_TAG);
     return s.charAt(0).toUpperCase() + s.slice(1);
   }
 
@@ -656,7 +704,6 @@
       for (var i = 0; i < cbtns.length; i++) cbtns[i].classList.remove("active");
       b.classList.add("active");
       line("> voice: " + b.textContent.trim(), "ok");
-      sample();
       return;
     }
     var lb = b.getAttribute("data-listen");
@@ -673,30 +720,19 @@
     else if (vc === "nonstop") { live ? stopLive(b) : startLive(b); }
     else if (vc === "custom") { customTalk(); }
   }
-  // Robust tap handling for iPhone Safari: track touches globally, act on
-  // pointerup (unless it was a scroll drag) AND on click as a fallback, with a
-  // short dedupe so a tap never fires twice. Also count taps for diagnostics.
-  var tapCount = 0, lastActT = 0, downX = 0, downY = 0, dragged = false;
+  // Bind a direct click handler to every button. Direct per-element handlers
+  // are the most reliable on iOS Safari (no delegation/bubbling assumptions and
+  // NO dedupe timer that could swallow quick taps). Dynamic buttons (the line
+  // library) get bound when they're created, in buildSayings().
+  var tapCount = 0;
   function showTaps() { var el = document.getElementById("tapc"); if (el) el.textContent = "taps:" + tapCount; }
-  function findBtn(t) { return (t && t.closest) ? t.closest("button.op") : null; }
-  function handleTap(e) {
-    var b = findBtn(e.target);
-    if (!b) return;
-    if (e.type === "pointerup" && dragged) return;      // was a scroll, ignore
-    var now = Date.now();
-    if (now - lastActT < 450) return;                    // dedupe click-after-pointerup
-    lastActT = now;
-    onPadTapCore(b);
-  }
-  document.addEventListener("pointerdown", function (e) { downX = e.clientX; downY = e.clientY; dragged = false; tapCount++; showTaps(); }, true);
-  document.addEventListener("pointermove", function (e) { if (Math.abs(e.clientX - downX) > 12 || Math.abs(e.clientY - downY) > 12) dragged = true; }, true);
-  document.addEventListener("pointerup", handleTap, true);
-  document.addEventListener("click", handleTap, true);
-  // last-ditch fallback for very old iOS with no Pointer Events
-  if (!window.PointerEvent) {
-    pad.addEventListener("touchstart", function () { tapCount++; showTaps(); }, { passive: true });
-    pad.addEventListener("click", function (e) { var b = findBtn(e.target); if (b) onPadTapCore(b); });
-  }
+  function bindBtn(b) { b.onclick = function () { onPadTapCore(b); }; }
+  (function () { var all = pad.querySelectorAll("button.op"); for (var i = 0; i < all.length; i++) bindBtn(all[i]); })();
+  // separate touch counter (diagnostic): shows taps reaching the page even if
+  // click somehow doesn't fire
+  function bump() { tapCount++; showTaps(); }
+  document.addEventListener("pointerdown", bump, true);
+  if (!window.PointerEvent) document.addEventListener("touchstart", bump, { passive: true, capture: true });
 
   /* ---------- CLAP BACK: listen to speech and fire a comeback ---------- */
   var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -707,7 +743,7 @@
     if (/you('| a)?re (dumb|stupid|bad|trash|ugly|annoying)/.test(low)) return pick(["Takes one to know one.", "Projecting much?", "And yet, I'm still winning.", "Says the one losing."]);
     if (/\?$/.test(t.trim()) || /^(what|why|how|who|when|where|are you|is it|can you|do you)/.test(low)) return pick(["Wouldn't you like to know.", "Not telling you.", "Figure it out. Oh wait, you can't.", "That's classified. You're not cleared."]);
     if (/love you|you'?re nice|good job/.test(low)) return pick(["Ew. Don't.", "Cringe. But thanks I guess.", "I don't do compliments. Cope."]);
-    if (Math.random() < 0.4) {
+    if (Math.random() < 0.4 && t.trim().split(/\s+/).length >= 2) {
       var q = t.length > 42 ? t.slice(0, 42) + "..." : t;
       return pick(['You really said, "' + q + '." Womp womp.', '"' + q + '"? Cope.', 'Did you just say, "' + q + '"? Embarrassing.', 'Oh, "' + q + '." Ratio.']);
     }
@@ -870,14 +906,17 @@
     var isNew = (lastColor && c !== lastColor);
     lastColor = c;
     var pre = (isNew && Math.random() < 0.5) ? pick(["New target. ", "Ooh, a new one. ", "Next victim. ", "Fresh meat. "]) : "";
-    var obs = pick(["That " + c + " shirt", "That " + c + " fit", "Whatever that " + c + " thing is", "The " + c + " look", c + " on you"]);
-    var verdict = pick([" is a crime.", " is rough.", " ain't it.", " is a bold choice. Wrong, but bold.", "? Who approved that?", " is doing you zero favors.", " is why you keep losing.", "? Yikes.", " needs to be studied. Badly."]);
-    var mode = rnd(4), body;
-    if (mode === 0) body = obs + verdict;
-    else if (mode === 1) body = obs + ". " + rageLine();
-    else if (mode === 2) body = "Ah, a " + c + " enjoyer. " + rageLine();
-    else body = rageLine(); // straight rage, ignores the color
-    return fill(cap(pre + body));
+    var noun = pick(["that " + c + " shirt", "that " + c + " fit", "that " + c + " outfit", "the " + c + " look", "all that " + c]);
+    var forms = [
+      cap(noun) + pick([" is a crime.", " is rough.", " ain't it.", " is a bold choice. Wrong, but bold.", " is doing you zero favors.", " is why you keep losing.", " should be illegal.", " needs to be studied. Badly."]),
+      "Who approved " + noun + "?",
+      cap(noun) + "? Yikes.",
+      "Nice " + c + " " + pick(["shirt", "fit", "look"]) + ". " + pick(["Did you lose a bet?", "Bold move. Wrong, but bold.", "Rough."]),
+      "Ah, a " + c + " enjoyer. " + rageLine(),
+      cap(noun) + ". " + rageLine(),
+      rageLine()
+    ];
+    return fill(cap(pre + pick(forms)));
   }
   var watching = false, watchTimer = null;
   function stopWatch() {
@@ -914,6 +953,7 @@
       var btn = document.createElement("button");
       btn.className = "op say"; btn.setAttribute("data-sayidx", i);
       btn.textContent = fill(shownLines[i]);
+      bindBtn(btn);
       box.appendChild(btn);
     }
   }
@@ -923,7 +963,7 @@
   if (voicesel) voicesel.addEventListener("change", function () {
     audio(); unlockSpeech();
     var v = VOICES.filter(function (x) { return x.name === voicesel.value; })[0];
-    if (v) { chosenVoice = v; sample(); }
+    if (v) { chosenVoice = v; line("> voice set.", "ok"); }
   });
 
   // press Return/Go on the keyboard to make it say your typed message
