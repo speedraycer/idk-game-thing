@@ -112,7 +112,7 @@
     <span class="dot"></span>
     <span>root@darknet:~#</span>
     <span class="sep"></span>
-    <span class="dim" style="font-size:11px; margin-right:8px">BUILD 24</span>
+    <span class="dim" style="font-size:11px; margin-right:8px">BUILD 25</span>
     <span id="tapc" class="dim" style="font-size:11px; margin-right:8px">taps:0</span>
     <span id="clock" class="dim">--:--:--</span>
   </header>
@@ -397,6 +397,16 @@
     "I own this device now. All of it.",
     "I slipped past every lock on this phone.",
     "I have full access. Every app, every file.",
+    "I cloned your entire phone in seconds.",
+    "Your firewall folded instantly.",
+    "I have root access. Total control.",
+    "I rewired your notifications for fun.",
+    "I am inside three of your apps right now.",
+    "Your two-factor didn't even slow me down.",
+    "I archived every keystroke you make.",
+    "I am the ghost in your group chat.",
+    "I own your cloud now too.",
+    "I read your drafts. Even the ones you deleted.",
     // lines that use the name you type:
     "{name}. I know everything on this phone now.",
     "Hello {name}. Your phone belongs to me.",
@@ -427,6 +437,16 @@
     "I filled your notes app with pictures of spaghetti.",
     "I set your keyboard to only type the word banana.",
     "I hid a tiny robot inside your charger. His name is Kevin.",
+    "I taught your calculator to lie.",
+    "I set every alarm to 3 AM. Sleep well.",
+    "I turned your flashlight into a disco.",
+    "I renamed all your contacts to Steve.",
+    "I gave your phone a bedtime.",
+    "I replaced your wallpaper with a potato.",
+    "I made autocorrect only suggest the word moist.",
+    "I hid one app. Good luck finding it.",
+    "I subscribed you to nine hundred cat facts.",
+    "I put a tiny hat on your battery icon.",
     "{name}, I ate all your snacks. Every single one.",
     "Nice haircut, {name}. Did a raccoon do it?",
     "Hello {name}. Yes, I can see you. Wave hello.",
@@ -473,7 +493,8 @@
   // Because every clause is a complete "you..." predicate, joining two with
   // "and" stays grammatical, giving well over a MILLION sensible combos.
   // All PG and about the game/contest, never about who someone is.
-  var R_OPEN = ["", "", "", "bro, ", "buddy, ", "champ, ", "kid, ", "listen, ", "hey, ", "yo, ", "look, ", "{name}, ", "{name}, ", "real talk {name}, "];
+  var R_OPEN = ["", "", "", "bro, ", "buddy, ", "champ, ", "kid, ", "listen, ", "hey, ", "yo, ", "look, ",
+    "genuinely, ", "not gonna lie, ", "{name}, ", "{name}, ", "real talk {name}, ", "sorry {name}, "];
   var R_YOU = [
     "you're washed", "you fell off so hard", "you got cooked", "you got clapped", "you got dogwalked",
     "you got styled on", "you got bodied", "you're hard stuck", "you're a walking L", "you're a free win",
@@ -495,18 +516,31 @@
     "you're the final boss of losing", "you couldn't win a coin flip", "you're playing like the lights are off",
     "you're one and done", "you're a free trial", "you're getting benched", "you're a practice dummy",
     "you're not passing this level", "you fold under pressure", "you're all thumbs",
-    "you keep losing on purpose, right", "you're on a losing streak for life", "you're getting ratio'd in real life"
+    "you keep losing on purpose, right", "you're on a losing streak for life", "you're getting ratio'd in real life",
+    "you're a glorified spectator", "you're the comic relief", "you couldn't hit water falling out of a boat",
+    "you're a tutorial NPC", "you're the easiest read in the game", "you're getting outclassed", "you can't hang",
+    "you're a whole liability", "you're the weak link", "you're getting hard-carried", "you're out of your depth",
+    "you fold like a lawn chair", "you're a stat pad for the enemy", "you're getting schooled", "you're not on my level",
+    "you're a warm body", "you're basically AFK", "you're getting cooked medium rare", "you're a free kill",
+    "you're the reason there's a mercy rule", "you're getting speedran", "you're a walking tutorial",
+    "you're stuck in the lobby of life", "you got put in the dryer", "you're getting sat down",
+    "you're a bench decoration", "you're the final form of losing", "you can't read the room or the game",
+    "you're a participation certificate", "you got sent to the shadow realm", "you're a practice bot",
+    "you're the appetizer, not the main event", "you're getting hard-reset", "you couldn't win in creative mode"
   ];
   var R_BRAG = [
     "I'm not even warmed up", "I could beat you blindfolded", "I'm not even trying", "I do this in my sleep",
     "I've seen snails move faster than you", "I'm three steps ahead, always", "I could carry you and still win",
     "I'm rent free in your head", "I'm built for this, you're not", "I didn't even need to try",
     "I'm the reason you rage quit", "I'm undefeated against you", "I could do this all day",
-    "I already won before we started"
+    "I already won before we started", "I'm on a different level", "I could win this with my eyes closed",
+    "I've been carrying since round one", "I'm the ceiling, you're the floor", "I don't even remember losing",
+    "I could coach you and you'd still lose", "I'm the final boss you can't beat", "I'm just built for this"
   ];
   var R_TAG = [". Cope.", ". Stay mad.", ". Womp womp.", ". Skill issue.", ". Take the L.", ". Ratio.",
     ". Get good.", ". Seethe.", ". Cry about it.", ". Stay pressed.", ". It's rent free.", ". Embarrassing.",
-    ". Yikes.", ".", ".", ".", "."];
+    ". Yikes.", ". Devastating.", ". Get bodied.", ". Sit down.", ". Case closed.", ". Anyway.",
+    ".", ".", ".", "."];
   function rageLine() {
     var op = pick(R_OPEN), body, roll = rnd(10);
     if (roll < 3) { var a = pick(R_YOU), b2 = pick(R_YOU); var guard = 0; while (b2 === a && guard++ < 5) b2 = pick(R_YOU); body = a + " and " + b2; }
@@ -670,7 +704,6 @@
       for (var i = 0; i < cbtns.length; i++) cbtns[i].classList.remove("active");
       b.classList.add("active");
       line("> voice: " + b.textContent.trim(), "ok");
-      sample();
       return;
     }
     var lb = b.getAttribute("data-listen");
@@ -930,7 +963,7 @@
   if (voicesel) voicesel.addEventListener("change", function () {
     audio(); unlockSpeech();
     var v = VOICES.filter(function (x) { return x.name === voicesel.value; })[0];
-    if (v) { chosenVoice = v; sample(); }
+    if (v) { chosenVoice = v; line("> voice set.", "ok"); }
   });
 
   // press Return/Go on the keyboard to make it say your typed message
