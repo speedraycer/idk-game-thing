@@ -112,7 +112,8 @@
     <span class="dot"></span>
     <span>root@darknet:~#</span>
     <span class="sep"></span>
-    <span class="dim" style="font-size:11px; margin-right:8px">BUILD 21</span>
+    <span class="dim" style="font-size:11px; margin-right:8px">BUILD 22</span>
+    <span id="tapc" class="dim" style="font-size:11px; margin-right:8px">taps:0</span>
     <span id="clock" class="dim">--:--:--</span>
   </header>
 
@@ -615,9 +616,7 @@
     line("> stopped.", "ok"); line("");
   }
 
-  function onPadTap(e) {
-    var t = e.target;
-    var b = (t && t.closest) ? t.closest("button.op") : null;
+  function onPadTapCore(b) {
     if (!b) return;
     // these run inside the real tap so phones allow the voice to play
     audio(); unlockSpeech(); buzz(25);
@@ -674,9 +673,30 @@
     else if (vc === "nonstop") { live ? stopLive(b) : startLive(b); }
     else if (vc === "custom") { customTalk(); }
   }
-  // Plain click delegation — reliable on iPhone for real <button> elements and
-  // does not interfere with scrolling the panel.
-  pad.addEventListener("click", onPadTap);
+  // Robust tap handling for iPhone Safari: track touches globally, act on
+  // pointerup (unless it was a scroll drag) AND on click as a fallback, with a
+  // short dedupe so a tap never fires twice. Also count taps for diagnostics.
+  var tapCount = 0, lastActT = 0, downX = 0, downY = 0, dragged = false;
+  function showTaps() { var el = document.getElementById("tapc"); if (el) el.textContent = "taps:" + tapCount; }
+  function findBtn(t) { return (t && t.closest) ? t.closest("button.op") : null; }
+  function handleTap(e) {
+    var b = findBtn(e.target);
+    if (!b) return;
+    if (e.type === "pointerup" && dragged) return;      // was a scroll, ignore
+    var now = Date.now();
+    if (now - lastActT < 450) return;                    // dedupe click-after-pointerup
+    lastActT = now;
+    onPadTapCore(b);
+  }
+  document.addEventListener("pointerdown", function (e) { downX = e.clientX; downY = e.clientY; dragged = false; tapCount++; showTaps(); }, true);
+  document.addEventListener("pointermove", function (e) { if (Math.abs(e.clientX - downX) > 12 || Math.abs(e.clientY - downY) > 12) dragged = true; }, true);
+  document.addEventListener("pointerup", handleTap, true);
+  document.addEventListener("click", handleTap, true);
+  // last-ditch fallback for very old iOS with no Pointer Events
+  if (!window.PointerEvent) {
+    pad.addEventListener("touchstart", function () { tapCount++; showTaps(); }, { passive: true });
+    pad.addEventListener("click", function (e) { var b = findBtn(e.target); if (b) onPadTapCore(b); });
+  }
 
   /* ---------- CLAP BACK: listen to speech and fire a comeback ---------- */
   var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
