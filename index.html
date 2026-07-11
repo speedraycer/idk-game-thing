@@ -116,7 +116,7 @@
     <span class="dot"></span>
     <span>root@darknet:~#</span>
     <span class="sep"></span>
-    <span class="dim" style="font-size:11px; margin-right:8px">BUILD 27</span>
+    <span class="dim" style="font-size:11px; margin-right:8px">BUILD 28</span>
     <span id="tapc" class="dim" style="font-size:11px; margin-right:8px">taps:0</span>
     <span id="clock" class="dim">--:--:--</span>
   </header>
@@ -387,8 +387,8 @@
   var aiKey = "";
   try { aiKey = localStorage.getItem(AI_KEY_LS) || ""; } catch (e) {}
   var aiOn = false;
-  // fast + cheap model so live roasting and camera reactions feel snappy
-  var AI_MODEL = "claude-haiku-4-5";
+  // smartest model — the whole point is that he's clever, not fast
+  var AI_MODEL = "claude-opus-4-8";
 
   // Hard, non-negotiable guardrails baked into every request.
   var AI_GUARDRAILS =
@@ -405,7 +405,10 @@
     return "A cool, confident 'elite hacker' who has taken over the phone. Smug, clever, and playful, but PG.";
   }
   function aiSystem() {
-    return "You are the voice of a phone prank app called H4CK3R TERMINAL, used by a kid to jokingly roast their cousins and friends. Be genuinely funny and punchy, one short line at a time.\n\nRIGHT NOW THE VIBE IS: " + toneDesc() + "\n\n" + AI_GUARDRAILS;
+    return "You are the voice of a phone prank app called H4CK3R TERMINAL, used by a kid to jokingly roast their cousins and friends. "
+      + "Be genuinely CLEVER and SHARP — not generic. Avoid tired filler like 'skill issue' or 'cope' unless it really lands; invent fresh, specific, surprising burns. "
+      + "React to real details (what you're told or shown), use wordplay and unexpected comparisons, and keep each line short and punchy so it hits out loud.\n\n"
+      + "RIGHT NOW THE VIBE IS: " + toneDesc() + "\n\n" + AI_GUARDRAILS;
   }
   function aiHeaders() {
     return {
@@ -750,13 +753,13 @@
   // HACKER VOICE: speak the whole monologue. First line fires immediately on the
   // tap (so mobile allows it); the rest chain on each line finishing.
   // speak an array of lines one after another; stops if another button is tapped
-  function speakSeq(seq, myGen) {
+  function speakSeq(seq, myGen, fromAI) {
     var i = 0;
     (function next() {
       if (myGen !== gen) return;               // another button was tapped -> stop
       if (i >= seq.length) { line("> ...transmission ended.", "ok"); line(""); return; }
       var s = fill(seq[i++]);
-      line('  "' + s + '"', "bad");
+      line('  ' + (fromAI ? "🧠 " : "") + '"' + s + '"', "bad");
       buzz(30); beep(120, 0.06, "sawtooth", 0.05);
       say(s).then(function () { if (myGen === gen) setTimeout(next, 160); });
     })();
@@ -771,7 +774,7 @@
       line("> 🧠 thinking...", "dim");
       aiLines(n).then(function (seq) {
         if (myGen !== gen) return;
-        speakSeq(seq, myGen);
+        speakSeq(seq, myGen, true);
       }).catch(function (err) {
         if (myGen !== gen) return;
         line("> 🧠 AI hiccup (" + err.message + ") — using built-in lines.", "warn");
@@ -807,10 +810,10 @@
     line("> non-stop mode engaged. tap STOP to end.", "bad");
     (function loop() {
       if (!live || myGen !== gen) return;
-      var go = function (raw) {
+      var go = function (raw, fromAI) {
         if (!live || myGen !== gen) return;
         var s = fill(raw);
-        line('  "' + s + '"', "bad");
+        line('  ' + (fromAI ? "🧠 " : "") + '"' + s + '"', "bad");
         buzz(30); beep(120, 0.06, "sawtooth", 0.05);
         say(s).then(function () {
           if (!live || myGen !== gen) return;
@@ -819,8 +822,8 @@
       };
       if (aiOn && aiKey) {
         aiAsk("Say ONE fresh line right now. Just the single line.", { max: 60 })
-          .then(function (t) { go(aiClean(t)); })
-          .catch(function () { go(oneLine()); });
+          .then(function (t) { go(aiClean(t), true); })
+          .catch(function (err) { line("> 🧠 AI hiccup (" + err.message + ") — built-in line.", "warn"); go(oneLine()); });
       } else { go(oneLine()); }
     })();
   }
@@ -921,13 +924,13 @@
   function respondTo(t) {
     botSpeaking = true;
     line(""); line('  heard: "' + t + '"', "dim");
-    var finish = function (reply) {
-      line('  "' + reply + '"', "bad"); buzz(30); beep(120, 0.06, "sawtooth", 0.05);
+    var finish = function (reply, fromAI) {
+      line('  ' + (fromAI ? "🧠 " : "") + '"' + reply + '"', "bad"); buzz(30); beep(120, 0.06, "sawtooth", 0.05);
       say(reply).then(function () { botSpeaking = false; if (listening && recog) { try { recog.start(); } catch (e) {} } });
     };
     if (aiOn && aiKey) {
       aiAsk('Someone just said to you: "' + t + '". Clap back with ONE short, savage but PG comeback. Just the line.', { max: 60 })
-        .then(function (r) { finish(fill(aiClean(r))); })
+        .then(function (r) { finish(fill(aiClean(r)), true); })
         .catch(function () { finish(comeback(t)); });
     } else { finish(comeback(t)); }
   }
@@ -1134,13 +1137,14 @@
       buzz(15);
       watchTimer = setTimeout(function () {          // "think" for a beat, THEN speak
         if (!watching) return;
-        var speakRoast = function (msg) {
+        var speakRoast = function (msg, fromAI) {
           if (!watching) return;
-          stopSpeak(); line('  "' + msg + '"', "bad"); buzz(30); beep(120, 0.06, "sawtooth", 0.05); say(msg);
+          stopSpeak(); line('  ' + (fromAI ? "🧠 " : "") + '"' + msg + '"', "bad"); buzz(30); beep(120, 0.06, "sawtooth", 0.05); say(msg);
           watchTimer = setTimeout(loop, 3600 + rnd(2600));
         };
         if (aiOn && aiKey) {
-          aiVisionRoast().then(speakRoast).catch(function () { speakRoast(camComment(a)); });
+          aiVisionRoast().then(function (m) { speakRoast(m, true); })
+            .catch(function (err) { line("> 🧠 vision hiccup (" + err.message + ") — built-in line.", "warn"); speakRoast(camComment(a)); });
         } else { speakRoast(camComment(a)); }
       }, 750);
     })();
