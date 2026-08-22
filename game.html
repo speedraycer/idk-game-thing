@@ -11,10 +11,6 @@
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
   :root {
-    --grass-a: #86d15a;      /* light track */
-    --grass-b: #5fae3a;      /* mid track */
-    --grass-c: #3f8a2a;      /* wall / dark */
-    --frame:   #2f6d1f;      /* outer frame */
     --red:  #e53935; --green: #43a047; --blue: #1e88e5; --yellow: #fdd835;
   }
   html, body {
@@ -25,13 +21,9 @@
     overflow: hidden;
     user-select: none; -webkit-user-select: none; touch-action: none;
   }
-  #wrap {
-    position: fixed; inset: 0;
-    display: flex; align-items: center; justify-content: center;
-  }
+  #wrap { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; }
   canvas { display: block; touch-action: none; }
 
-  /* ---- overlays ---- */
   .screen {
     position: fixed; inset: 0; z-index: 10;
     display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -42,8 +34,7 @@
   .screen.hidden { display: none; }
   .logo {
     font-weight: 900; letter-spacing: 1px; line-height: .95;
-    font-size: clamp(38px, 13vw, 78px);
-    text-transform: uppercase;
+    font-size: clamp(38px, 13vw, 78px); text-transform: uppercase;
     background: linear-gradient(180deg,#d6ff9e,#7bd142 55%,#3f8a2a);
     -webkit-background-clip: text; background-clip: text; color: transparent;
     filter: drop-shadow(0 4px 0 rgba(0,0,0,.35));
@@ -65,14 +56,13 @@
     text-transform: uppercase; transition: transform .06s, box-shadow .06s;
   }
   .btn:active { transform: translateY(4px); box-shadow: 0 2px 0 #3f8a2a, 0 6px 12px rgba(0,0,0,.4); }
-  .sub { margin-top: 20px; max-width: 320px; color: #d8f0c2; font-size: 15px; line-height: 1.5; }
+  .sub { margin-top: 20px; max-width: 330px; color: #d8f0c2; font-size: 15px; line-height: 1.5; }
   .big-num { font-size: clamp(60px,22vw,130px); font-weight: 900; color:#ffe14d; filter: drop-shadow(0 5px 0 rgba(0,0,0,.4)); line-height:1; }
   .stat-row { display:flex; gap: 30px; margin-top: 14px; }
   .stat { color:#cfeeb0; font-weight:800; font-size: 16px; }
   .stat b { display:block; color:#fff; font-size: 30px; }
   .hint-key { color:#a9d98a; font-size: 13px; margin-top: 30px; }
 
-  /* HUD */
   #hud {
     position: fixed; top: calc(8px + env(safe-area-inset-top)); left: 0; right: 0;
     z-index: 6; display: flex; justify-content: space-between; align-items: center;
@@ -103,8 +93,8 @@
     <div class="cube" style="background:#fdd835"></div>
   </div>
   <button class="btn" id="playBtn">▶ Play</button>
-  <div class="sub">Steer the cube train through the maze. Gobble the glowing blocks, then rush to the 🏁 checkered finish. Dodge the purple spikes and don't bite the walls!</div>
-  <div class="hint-key">Swipe to turn &nbsp;•&nbsp; or use Arrow keys / WASD</div>
+  <div class="sub">Drive the 4-cube train out of the cyan gate and through the maze. Grab every colored block, then rush to the 🏁 checkered finish. Don't hit a wall, a spike, or your own tail!</div>
+  <div class="hint-key">Swipe to turn &nbsp;•&nbsp; or Arrow keys / WASD</div>
 </div>
 
 <!-- LEVEL COMPLETE -->
@@ -113,7 +103,7 @@
   <div class="big-num" id="winLvl">1</div>
   <div class="stat-row">
     <div class="stat">SCORE <b id="winScore">0</b></div>
-    <div class="stat">TRAIN <b id="winLen">4</b></div>
+    <div class="stat">BLOCKS <b id="winBlocks">0</b></div>
   </div>
   <button class="btn" id="nextBtn">Next ▶</button>
 </div>
@@ -133,39 +123,31 @@
 (() => {
   "use strict";
 
-  // ---------- constants ----------
-  const COLORS = {
-    red:    "#e53935", green: "#43a047", blue: "#1e88e5", yellow: "#fdd835",
-  };
-  const COLOR_KEYS = ["red", "green", "blue", "yellow"];
-  const DIRS = {
-    up:    { x: 0, y: -1 }, down: { x: 0, y: 1 },
-    left:  { x: -1, y: 0 }, right:{ x: 1, y: 0 },
-  };
-  const OPP = { up: "down", down: "up", left: "right", right: "left" };
+  // ---------- palette ----------
+  const COLORS = { red:"#e53935", green:"#43a047", blue:"#1e88e5", yellow:"#fdd835" };
+  const TRAIN  = ["red", "green", "blue", "yellow"];   // fixed 4-cube train, head -> tail
+  const COL_ORDER = ["red", "green", "blue", "yellow"];// central grid columns
+  const PATH = "#a6d977", WALL = "#4f9e39", WALL_SHADE = "#3f8a2a";
+  const DIRS = { up:{x:0,y:-1}, down:{x:0,y:1}, left:{x:-1,y:0}, right:{x:1,y:0} };
+  const OPP  = { up:"down", down:"up", left:"right", right:"left" };
 
   // ---------- canvas / layout ----------
   const canvas = document.getElementById("c");
   const ctx = canvas.getContext("2d");
-  let DPR = Math.min(window.devicePixelRatio || 1, 2.5);
+  let DPR = 1;
 
-  // grid dimensions (portrait, phone-shaped)
-  const COLS = 13, ROWS = 20;
+  // maze needs odd dimensions (rooms on odd coords, walls on even)
+  const COLS = 13, ROWS = 21;
   let cell = 24, boardX = 0, boardY = 0, boardW = 0, boardH = 0;
 
   function resize() {
     DPR = Math.min(window.devicePixelRatio || 1, 2.5);
     const vw = window.innerWidth, vh = window.innerHeight;
-    canvas.style.width = vw + "px";
-    canvas.style.height = vh + "px";
-    canvas.width = Math.floor(vw * DPR);
-    canvas.height = Math.floor(vh * DPR);
+    canvas.style.width = vw + "px"; canvas.style.height = vh + "px";
+    canvas.width = Math.floor(vw * DPR); canvas.height = Math.floor(vh * DPR);
     ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
-
-    // fit the COLS x ROWS board with a margin, leaving room for HUD on top
-    const marginX = 10, topPad = 54, botPad = 14;
-    const availW = vw - marginX * 2;
-    const availH = vh - topPad - botPad;
+    const marginX = 10, topPad = 52, botPad = 12;
+    const availW = vw - marginX * 2, availH = vh - topPad - botPad;
     cell = Math.floor(Math.min(availW / COLS, availH / ROWS));
     boardW = cell * COLS; boardH = cell * ROWS;
     boardX = Math.floor((vw - boardW) / 2);
@@ -174,111 +156,139 @@
   window.addEventListener("resize", resize);
   window.addEventListener("orientationchange", resize);
 
-  // ---------- level generation ----------
-  // Maze is stored as a grid of cells: 0 = track, 1 = wall.
-  // We carve an open, navigable field with wall clusters so it reads like the
-  // green "2D-Simulator" tracks but stays fun for a snake train.
+  // ---------- state ----------
   let grid, level = 1, score = 0, best = +(localStorage.getItem("quadrush_best") || 0);
-  let snake, dir, nextDir, pellets, need, got, finish, spikes;
+  let snake, dir, nextDir, blocks, need, got, gate, finish, spikes;
   let moveEvery, moveTimer, alive = false, running = false;
+  let particles = [];
 
-  function idx(x, y) { return y * COLS + x; }
+  const idx = (x, y) => y * COLS + x;
   function isWall(x, y) {
     if (x < 0 || y < 0 || x >= COLS || y >= ROWS) return true;
     return grid[idx(x, y)] === 1;
   }
+  function makeRng(seed) { let s = seed >>> 0; return () => { s = (s*1664525 + 1013904223) >>> 0; return s/4294967296; }; }
 
-  // deterministic-ish PRNG per level so a level looks intentional
-  function makeRng(seed) {
-    let s = seed >>> 0;
-    return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
+  // ---------- maze generation ----------
+  // Recursive-backtracker perfect maze, then "braided" (dead ends removed) so
+  // the corridors form loops — fair for a train and looks like the reference.
+  function carveMaze(rng) {
+    grid = new Array(COLS * ROWS).fill(1);
+    const roomCells = [];
+    for (let y = 1; y < ROWS; y += 2) for (let x = 1; x < COLS; x += 2) roomCells.push({ x, y });
+
+    const start = { x: 1, y: 1 };
+    grid[idx(1, 1)] = 0;
+    const stack = [start];
+    while (stack.length) {
+      const cur = stack[stack.length - 1];
+      const nb = [];
+      for (const k in DIRS) {
+        const nx = cur.x + DIRS[k].x * 2, ny = cur.y + DIRS[k].y * 2;
+        if (nx > 0 && ny > 0 && nx < COLS && ny < ROWS && grid[idx(nx, ny)] === 1) nb.push({ nx, ny, mx: cur.x + DIRS[k].x, my: cur.y + DIRS[k].y });
+      }
+      if (nb.length) {
+        const n = nb[Math.floor(rng() * nb.length)];
+        grid[idx(n.mx, n.my)] = 0; grid[idx(n.nx, n.ny)] = 0;
+        stack.push({ x: n.nx, y: n.ny });
+      } else stack.pop();
+    }
+
+    // braid: knock out a wall at each dead end to create loops (fewer traps)
+    for (const c of roomCells) {
+      let open = 0, walls = [];
+      for (const k in DIRS) {
+        const mx = c.x + DIRS[k].x, my = c.y + DIRS[k].y;
+        const nx = c.x + DIRS[k].x * 2, ny = c.y + DIRS[k].y * 2;
+        if (!isWall(mx, my)) open++;
+        else if (nx > 0 && ny > 0 && nx < COLS && ny < ROWS) walls.push({ mx, my });
+      }
+      if (open <= 1 && walls.length) {
+        const w = walls[Math.floor(rng() * walls.length)];
+        grid[idx(w.mx, w.my)] = 0;
+      }
+    }
+  }
+
+  function pathNeighbors(x, y) {
+    const r = [];
+    for (const k in DIRS) { const nx = x + DIRS[k].x, ny = y + DIRS[k].y; if (!isWall(nx, ny)) r.push({ x: nx, y: ny, k }); }
+    return r;
+  }
+
+  function buildStartTrain() {
+    // walk 4 connected path cells out of the gate
+    const cells = [{ x: gate.x, y: gate.y }];
+    let cur = cells[0];
+    while (cells.length < 4) {
+      const opts = pathNeighbors(cur.x, cur.y).filter(n => !cells.some(c => c.x === n.x && c.y === n.y));
+      if (!opts.length) break;
+      cur = { x: opts[0].x, y: opts[0].y };
+      cells.push(cur);
+    }
+    while (cells.length < 4) cells.push({ x: cells[cells.length - 1].x, y: cells[cells.length - 1].y });
+
+    const freeDir = (head, back) => {
+      for (const k in DIRS) {
+        const nx = head.x + DIRS[k].x, ny = head.y + DIRS[k].y;
+        if (isWall(nx, ny)) continue;
+        if (nx === back.x && ny === back.y) continue;
+        return k;
+      }
+      return null;
+    };
+    let d = freeDir(cells[0], cells[1]);
+    if (d) { snake = cells; dir = d; }
+    else { const d2 = freeDir(cells[3], cells[2]); cells.reverse(); snake = cells; dir = d2 || "down"; }
+    nextDir = dir;
   }
 
   function buildLevel(lvl) {
     const rng = makeRng(lvl * 2654435761 + 12345);
-    grid = new Array(COLS * ROWS).fill(0);
+    carveMaze(rng);
 
-    // solid border walls
-    for (let x = 0; x < COLS; x++) { grid[idx(x, 0)] = 1; grid[idx(x, ROWS - 1)] = 1; }
-    for (let y = 0; y < ROWS; y++) { grid[idx(0, y)] = 1; grid[idx(COLS - 1, y)] = 1; }
-
-    // interior wall clusters — short bars that never fully seal a region.
-    const clusters = 3 + Math.min(9, lvl);
-    for (let i = 0; i < clusters; i++) {
-      const horiz = rng() < 0.5;
-      const len = 2 + Math.floor(rng() * (horiz ? 5 : 6));
-      let cx = 2 + Math.floor(rng() * (COLS - 4));
-      let cy = 3 + Math.floor(rng() * (ROWS - 6));
-      for (let k = 0; k < len; k++) {
-        const wx = horiz ? cx + k : cx;
-        const wy = horiz ? cy : cy + k;
-        if (wx > 1 && wx < COLS - 2 && wy > 2 && wy < ROWS - 2) grid[idx(wx, wy)] = 1;
-      }
-    }
-
-    // snake starts near bottom-center on guaranteed-clear cells
-    const sx = Math.floor(COLS / 2), sy = ROWS - 3;
-    for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) {
-      const nx = sx + dx, ny = sy + dy;
-      if (nx > 0 && ny > 0 && nx < COLS - 1 && ny < ROWS - 1) grid[idx(nx, ny)] = 0;
-    }
-
-    snake = [
-      { x: sx, y: sy,     color: "red" },
-      { x: sx, y: sy + 1, color: "green" },
-    ];
-    dir = "up"; nextDir = "up";
-
-    // scatter pellets on free cells away from the snake
-    need = 3 + Math.min(9, lvl + 1);
-    got = 0;
-    pellets = [];
-    let tries = 0;
-    while (pellets.length < need && tries < 900) {
-      tries++;
-      const x = 1 + Math.floor(rng() * (COLS - 2));
-      const y = 1 + Math.floor(rng() * (ROWS - 2));
-      if (isWall(x, y)) continue;
-      if (Math.abs(x - sx) + Math.abs(y - sy) < 3) continue;
-      if (pellets.some(p => p.x === x && p.y === y)) continue;
-      pellets.push({ x, y, color: COLOR_KEYS[Math.floor(rng() * COLOR_KEYS.length)], pop: 0 });
-    }
-
-    // finish flag: a clear cell near the top
-    finish = null;
-    for (let t = 0; t < 400 && !finish; t++) {
-      const x = 1 + Math.floor(rng() * (COLS - 2));
-      const y = 1 + Math.floor(rng() * 3) + 1;
-      if (!isWall(x, y) && !pellets.some(p => p.x === x && p.y === y)) finish = { x, y };
-    }
-    if (!finish) finish = { x: sx, y: 1 };
+    // cyan start gate (top-left) and checkered finish (top-right) on room cells
+    gate = { x: 1, y: 1 };
+    finish = { x: COLS - 2, y: 1 };
+    grid[idx(gate.x, gate.y)] = 0;
     grid[idx(finish.x, finish.y)] = 0;
 
-    // moving purple spikes appear from level 3+
+    // central colored-block grid inside a carved-open room
+    const bCols = 4, bRows = 3 + (lvl % 3);           // 3..5 rows
+    const bx0 = Math.floor((COLS - bCols) / 2);
+    const by0 = Math.floor((ROWS - bRows) / 2);
+    for (let y = by0 - 1; y <= by0 + bRows; y++)
+      for (let x = bx0 - 1; x <= bx0 + bCols; x++)
+        if (x > 0 && y > 0 && x < COLS - 1 && y < ROWS - 1) grid[idx(x, y)] = 0;
+
+    blocks = [];
+    for (let r = 0; r < bRows; r++) for (let c = 0; c < bCols; c++)
+      blocks.push({ x: bx0 + c, y: by0 + r, color: COL_ORDER[c], pop: 0 });
+    need = blocks.length; got = 0;
+
+    buildStartTrain();
+
+    // moving purple spikes from level 3+
     spikes = [];
-    const spikeCount = lvl < 3 ? 0 : Math.min(5, lvl - 2);
-    for (let i = 0; i < spikeCount; i++) {
+    const sCount = lvl < 3 ? 0 : Math.min(6, lvl - 1);
+    for (let i = 0; i < sCount; i++) {
       let x, y, guard = 0;
       do {
         x = 2 + Math.floor(rng() * (COLS - 4));
-        y = 3 + Math.floor(rng() * (ROWS - 7));
+        y = 2 + Math.floor(rng() * (ROWS - 4));
         guard++;
-      } while ((isWall(x, y) || (Math.abs(x - sx) + Math.abs(y - sy) < 4)) && guard < 60);
-      const axis = rng() < 0.5 ? "x" : "y";
-      spikes.push({ x, y, axis, vel: rng() < 0.5 ? 1 : -1 });
+      } while ((isWall(x, y) ||
+                blocks.some(b => b.x === x && b.y === y) ||
+                snake.some(s => Math.abs(s.x - x) + Math.abs(s.y - y) < 3)) && guard < 80);
+      if (guard < 80) spikes.push({ x, y, axis: rng() < 0.5 ? "x" : "y", vel: rng() < 0.5 ? 1 : -1 });
     }
 
-    moveEvery = Math.max(88, 150 - lvl * 6);   // ms per step, speeds up per level
-    moveTimer = 0;
-    alive = true;
+    moveEvery = Math.max(90, 145 - lvl * 6);
+    moveTimer = 0; alive = true;
   }
 
   // ---------- input ----------
-  function setDir(d) {
-    if (!running || !alive) return;
-    if (d === OPP[dir]) return;           // can't reverse into yourself
-    nextDir = d;
-  }
+  function setDir(d) { if (running && alive && d !== OPP[dir]) nextDir = d; }
   window.addEventListener("keydown", (e) => {
     const k = e.key.toLowerCase();
     if (k === "arrowup" || k === "w") setDir("up");
@@ -289,81 +299,61 @@
     e.preventDefault();
   }, { passive: false });
 
-  // swipe
   let touchStart = null;
-  canvas.addEventListener("touchstart", (e) => {
-    touchStart = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-  }, { passive: true });
+  canvas.addEventListener("touchstart", (e) => { touchStart = { x: e.touches[0].clientX, y: e.touches[0].clientY }; }, { passive: true });
   canvas.addEventListener("touchmove", (e) => {
     if (!touchStart) return;
-    const dx = e.touches[0].clientX - touchStart.x;
-    const dy = e.touches[0].clientY - touchStart.y;
-    if (Math.abs(dx) < 22 && Math.abs(dy) < 22) return;
+    const dx = e.touches[0].clientX - touchStart.x, dy = e.touches[0].clientY - touchStart.y;
+    if (Math.abs(dx) < 20 && Math.abs(dy) < 20) return;
     if (Math.abs(dx) > Math.abs(dy)) setDir(dx > 0 ? "right" : "left");
     else setDir(dy > 0 ? "down" : "up");
-    touchStart = null;
-    e.preventDefault();
+    touchStart = null; e.preventDefault();
   }, { passive: false });
   canvas.addEventListener("touchend", () => { touchStart = null; }, { passive: true });
 
-  // ---------- game step ----------
-  let particles = [];
+  // ---------- step ----------
   function spark(cx, cy, color, n) {
     for (let i = 0; i < n; i++) {
       const a = Math.random() * Math.PI * 2, sp = 1 + Math.random() * 3;
-      particles.push({ x: cx, y: cy, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
-                       life: 1, color });
+      particles.push({ x: cx, y: cy, vx: Math.cos(a)*sp, vy: Math.sin(a)*sp, life: 1, color });
     }
   }
 
   function step() {
     dir = nextDir;
     const head = snake[0];
-    const nx = head.x + DIRS[dir].x;
-    const ny = head.y + DIRS[dir].y;
+    const nx = head.x + DIRS[dir].x, ny = head.y + DIRS[dir].y;
 
-    // wall / self collision
-    if (isWall(nx, ny) || snake.some(s => s.x === nx && s.y === ny)) {
-      return gameOver();
-    }
+    // wall or self collision (tail vacates, so ignore last segment)
+    if (isWall(nx, ny)) return gameOver();
+    for (let i = 0; i < snake.length - 1; i++) if (snake[i].x === nx && snake[i].y === ny) return gameOver();
 
-    // move spikes
+    // move spikes along their axis, bounce off walls
     for (const sp of spikes) {
-      let px = sp.x + (sp.axis === "x" ? sp.vel : 0);
-      let py = sp.y + (sp.axis === "y" ? sp.vel : 0);
+      let px = sp.x + (sp.axis === "x" ? sp.vel : 0), py = sp.y + (sp.axis === "y" ? sp.vel : 0);
       if (isWall(px, py)) { sp.vel *= -1; px = sp.x; py = sp.y; }
       sp.x = px; sp.y = py;
     }
 
-    // build new head
-    const newHead = { x: nx, y: ny, color: snake[0].color };
-    // eat pellet?
-    const pi = pellets.findIndex(p => p.x === nx && p.y === ny);
-    let grew = false;
-    if (pi >= 0) {
-      const p = pellets[pi];
-      spark(boardX + (nx + .5) * cell, boardY + (ny + .5) * cell, COLORS[p.color], 14);
-      pellets.splice(pi, 1);
+    // advance train (fixed length of 4)
+    snake.unshift({ x: nx, y: ny });
+    snake.pop();
+
+    // eat a block?
+    const bi = blocks.findIndex(b => b.x === nx && b.y === ny);
+    if (bi >= 0) {
+      const b = blocks[bi];
+      spark(boardX + (nx + .5) * cell, boardY + (ny + .5) * cell, COLORS[b.color], 14);
+      blocks.splice(bi, 1);
       got++; score += 10 + level;
-      newHead.color = p.color;
-      grew = true;      // grow: don't pop tail
-      // spawn finish once all collected
+      if (navigator.vibrate) navigator.vibrate(15);
     }
 
-    snake.unshift(newHead);
-    if (!grew) snake.pop();
-    // each eaten pellet leaves its color as a new lead segment, so the train
-    // grows into a rainbow record of what you've gobbled.
+    // spike hit?
+    for (const sp of spikes) for (const s of snake) if (s.x === sp.x && s.y === sp.y) return gameOver();
 
-    // spike collision (after moves)
-    for (const sp of spikes) {
-      if (snake.some(s => s.x === sp.x && s.y === sp.y)) return gameOver();
-    }
-
-    // reached finish (only counts once all pellets gathered)
-    if (got >= need && nx === finish.x && ny === finish.y) {
-      return levelClear();
-    }
+    // reached finish once every block is collected
+    if (got >= need && nx === finish.x && ny === finish.y) return levelClear();
 
     updateHud();
   }
@@ -375,45 +365,28 @@
     el("score").textContent = score;
     el("goal").textContent = got >= need ? "🏁 GO!" : `◻ ${got}/${need}`;
   }
-
   function gameOver() {
     alive = false; running = false;
     if (score > best) { best = score; localStorage.setItem("quadrush_best", best); }
-    el("overLvl").textContent = level;
-    el("overScore").textContent = score;
-    el("best").textContent = best;
+    el("overLvl").textContent = level; el("overScore").textContent = score; el("best").textContent = best;
     show("over");
     if (navigator.vibrate) navigator.vibrate(120);
   }
-
   function levelClear() {
     alive = false; running = false;
     score += 50 + level * 10;
     if (score > best) { best = score; localStorage.setItem("quadrush_best", best); }
-    el("winLvl").textContent = level;
-    el("winScore").textContent = score;
-    el("winLen").textContent = snake.length;
+    el("winLvl").textContent = level; el("winScore").textContent = score; el("winBlocks").textContent = need;
     show("win");
     if (navigator.vibrate) navigator.vibrate([40, 60, 40]);
   }
-
-  function startGame() {
-    level = 1; score = 0;
-    beginLevel();
-  }
-  function beginLevel() {
-    buildLevel(level);
-    updateHud();
-    hideAll();
-    running = true;
-    last = performance.now();
-  }
-
+  function startGame() { level = 1; score = 0; beginLevel(); }
+  function beginLevel() { buildLevel(level); updateHud(); hideAll(); running = true; last = performance.now(); }
   function show(id) { hideAll(); el(id).classList.remove("hidden"); }
   function hideAll() { ["start","win","over"].forEach(s => el(s).classList.add("hidden")); }
 
   // ---------- render ----------
-  function drawRoundRect(x, y, w, h, r) {
+  function rrect(x, y, w, h, r) {
     ctx.beginPath();
     ctx.moveTo(x + r, y);
     ctx.arcTo(x + w, y, x + w, y + h, r);
@@ -425,115 +398,81 @@
 
   function draw() {
     const vw = window.innerWidth, vh = window.innerHeight;
-    // background frame (checkered like the screenshots)
-    ctx.fillStyle = "#2f6d1f";
-    ctx.fillRect(0, 0, vw, vh);
+
+    // outer checkered frame
+    ctx.fillStyle = "#2f6d1f"; ctx.fillRect(0, 0, vw, vh);
     const cs = 26;
-    for (let y = 0; y < vh; y += cs) for (let x = 0; x < vw; x += cs) {
-      if (((x / cs | 0) + (y / cs | 0)) & 1) { ctx.fillStyle = "rgba(0,0,0,.09)"; ctx.fillRect(x, y, cs, cs); }
-    }
+    ctx.fillStyle = "rgba(0,0,0,.09)";
+    for (let y = 0; y < vh; y += cs) for (let x = 0; x < vw; x += cs)
+      if (((x / cs | 0) + (y / cs | 0)) & 1) ctx.fillRect(x, y, cs, cs);
 
-    // board base
-    ctx.fillStyle = "#1e4915";
-    drawRoundRect(boardX - 6, boardY - 6, boardW + 12, boardH + 12, 14); ctx.fill();
+    // board frame
+    ctx.fillStyle = WALL;
+    rrect(boardX - 6, boardY - 6, boardW + 12, boardH + 12, 12); ctx.fill();
 
-    // cells
-    for (let y = 0; y < ROWS; y++) {
-      for (let x = 0; x < COLS; x++) {
-        const px = boardX + x * cell, py = boardY + y * cell;
-        if (grid[idx(x, y)] === 1) {
-          ctx.fillStyle = "#356e22";
-          ctx.fillRect(px, py, cell, cell);
-          ctx.fillStyle = "rgba(0,0,0,.16)";
-          ctx.fillRect(px, py + cell - 4, cell, 4);
-        } else {
-          // grass checker track
-          ctx.fillStyle = ((x + y) & 1) ? "#86d15a" : "#7cc850";
-          ctx.fillRect(px, py, cell, cell);
-        }
+    // cells: walls vs light-green path
+    for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) {
+      const px = boardX + x * cell, py = boardY + y * cell;
+      if (grid[idx(x, y)] === 1) {
+        ctx.fillStyle = WALL; ctx.fillRect(px, py, cell, cell);
+      } else {
+        ctx.fillStyle = PATH; ctx.fillRect(px, py, cell, cell);
       }
     }
-
-    // finish flag
-    if (finish) drawFinish(boardX + finish.x * cell, boardY + finish.y * cell, got >= need);
-
-    // pellets
-    for (const p of pellets) {
-      p.pop = Math.min(1, p.pop + 0.08);
-      drawPellet(boardX + p.x * cell, boardY + p.y * cell, p.color);
+    // black outline tracing the path corridors (edges between path and wall)
+    ctx.strokeStyle = "rgba(0,0,0,.85)";
+    ctx.lineWidth = Math.max(1.5, cell * 0.07);
+    ctx.beginPath();
+    for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) {
+      if (grid[idx(x, y)] !== 0) continue;
+      const px = boardX + x * cell, py = boardY + y * cell;
+      if (isWall(x, y - 1)) { ctx.moveTo(px, py); ctx.lineTo(px + cell, py); }
+      if (isWall(x, y + 1)) { ctx.moveTo(px, py + cell); ctx.lineTo(px + cell, py + cell); }
+      if (isWall(x - 1, y)) { ctx.moveTo(px, py); ctx.lineTo(px, py + cell); }
+      if (isWall(x + 1, y)) { ctx.moveTo(px + cell, py); ctx.lineTo(px + cell, py + cell); }
     }
+    ctx.stroke();
+
+    // start gate (cyan)
+    drawGate(boardX + gate.x * cell, boardY + gate.y * cell);
+    // finish
+    drawFinish(boardX + finish.x * cell, boardY + finish.y * cell, got >= need);
+
+    // colored blocks
+    for (const b of blocks) { b.pop = Math.min(1, b.pop + 0.1); drawBlock(boardX + b.x * cell, boardY + b.y * cell, b.color); }
 
     // spikes
     for (const sp of spikes) drawSpike(boardX + sp.x * cell, boardY + sp.y * cell);
 
-    // snake train
-    for (let i = snake.length - 1; i >= 0; i--) {
-      drawCube(boardX + snake[i].x * cell, boardY + snake[i].y * cell, snake[i].color, i === 0);
-    }
+    // train (draw tail first so head sits on top)
+    for (let i = snake.length - 1; i >= 0; i--)
+      drawCube(boardX + snake[i].x * cell, boardY + snake[i].y * cell, TRAIN[i], i === 0);
 
     // particles
     for (let i = particles.length - 1; i >= 0; i--) {
-      const pt = particles[i];
-      pt.x += pt.vx; pt.y += pt.vy; pt.vy += .12; pt.life -= .04;
-      if (pt.life <= 0) { particles.splice(i, 1); continue; }
-      ctx.globalAlpha = Math.max(0, pt.life);
-      ctx.fillStyle = pt.color;
-      ctx.fillRect(pt.x - 3, pt.y - 3, 6, 6);
-      ctx.globalAlpha = 1;
+      const p = particles[i];
+      p.x += p.vx; p.y += p.vy; p.vy += .12; p.life -= .04;
+      if (p.life <= 0) { particles.splice(i, 1); continue; }
+      ctx.globalAlpha = Math.max(0, p.life); ctx.fillStyle = p.color;
+      ctx.fillRect(p.x - 3, p.y - 3, 6, 6); ctx.globalAlpha = 1;
     }
+
+    // watermark
+    ctx.fillStyle = "rgba(20,55,12,.5)";
+    ctx.font = `700 ${Math.max(13, cell * 0.62)}px system-ui, sans-serif`;
+    ctx.textAlign = "center"; ctx.textBaseline = "alphabetic";
+    ctx.fillText("@2D-Simulator", boardX + boardW / 2, boardY + boardH - cell * 0.5);
+    ctx.textAlign = "left";
   }
 
-  function drawCube(px, py, colorKey, isHead) {
-    const pad = Math.max(1, cell * 0.06);
-    const s = cell - pad * 2;
-    const x = px + pad, y = py + pad, r = Math.max(3, s * 0.18);
-    ctx.fillStyle = COLORS[colorKey] || "#888";
-    drawRoundRect(x, y, s, s, r); ctx.fill();
-    // shading
-    ctx.fillStyle = "rgba(0,0,0,.18)";
-    drawRoundRect(x, y + s * 0.72, s, s * 0.28, r); ctx.fill();
-    ctx.strokeStyle = "rgba(0,0,0,.45)"; ctx.lineWidth = Math.max(1.5, s * 0.06);
-    drawRoundRect(x, y, s, s, r); ctx.stroke();
-    // eyes
-    const ew = s * 0.22, eh = s * 0.28, ey = y + s * 0.24;
-    const ex1 = x + s * 0.2, ex2 = x + s * 0.58;
-    ctx.fillStyle = "#fff";
-    drawRoundRect(ex1, ey, ew, eh, ew * 0.35); ctx.fill();
-    drawRoundRect(ex2, ey, ew, eh, ew * 0.35); ctx.fill();
-    ctx.fillStyle = "#111";
-    // pupils look toward travel dir on the head
-    let lookx = 0, looky = 0;
-    if (isHead) { lookx = DIRS[dir].x * ew * 0.22; looky = DIRS[dir].y * eh * 0.2; }
-    const pr = ew * 0.42;
-    ctx.beginPath(); ctx.arc(ex1 + ew / 2 + lookx, ey + eh / 2 + looky, pr, 0, 7); ctx.fill();
-    ctx.beginPath(); ctx.arc(ex2 + ew / 2 + lookx, ey + eh / 2 + looky, pr, 0, 7); ctx.fill();
-  }
-
-  function drawPellet(px, py, colorKey) {
-    const t = performance.now() / 400;
-    const s = cell * 0.62 * (0.9 + Math.sin(t) * 0.06);
-    const x = px + (cell - s) / 2, y = py + (cell - s) / 2, r = s * 0.22;
-    ctx.save();
-    ctx.shadowColor = COLORS[colorKey]; ctx.shadowBlur = 12;
-    ctx.fillStyle = COLORS[colorKey];
-    drawRoundRect(x, y, s, s, r); ctx.fill();
-    ctx.restore();
-    ctx.fillStyle = "rgba(255,255,255,.55)";
-    drawRoundRect(x + s * 0.18, y + s * 0.16, s * 0.28, s * 0.2, r * 0.5); ctx.fill();
-  }
-
-  function drawSpike(px, py) {
-    const cx = px + cell / 2, cy = py + cell / 2, s = cell * 0.42;
-    ctx.fillStyle = "#8e24aa";
-    ctx.strokeStyle = "#4a148c"; ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(cx, cy - s);
-    ctx.lineTo(cx + s, cy + s);
-    ctx.lineTo(cx - s, cy + s);
-    ctx.closePath(); ctx.fill(); ctx.stroke();
-    ctx.fillStyle = "rgba(255,255,255,.5)";
-    ctx.beginPath(); ctx.moveTo(cx, cy - s * 0.5); ctx.lineTo(cx + s * 0.3, cy + s * 0.3);
-    ctx.lineTo(cx - s * 0.3, cy + s * 0.3); ctx.closePath(); ctx.fill();
+  function drawGate(px, py) {
+    ctx.fillStyle = "#67e3f0";
+    ctx.fillRect(px, py, cell, cell);
+    ctx.strokeStyle = "#1b9fb3"; ctx.lineWidth = Math.max(2, cell * 0.09);
+    const m = cell * 0.2;
+    ctx.strokeRect(px + m, py + m, cell - m * 2, cell - m * 2);
+    ctx.strokeStyle = "rgba(0,0,0,.35)"; ctx.lineWidth = 1.5;
+    ctx.strokeRect(px + .5, py + .5, cell - 1, cell - 1);
   }
 
   function drawFinish(px, py, active) {
@@ -544,10 +483,47 @@
     }
     if (active) {
       const t = performance.now() / 200;
-      ctx.strokeStyle = `rgba(255,225,77,${0.5 + Math.sin(t) * 0.4})`;
-      ctx.lineWidth = 3;
-      ctx.strokeRect(px + 1, py + 1, cell - 2, cell - 2);
+      ctx.strokeStyle = `rgba(255,225,77,${0.55 + Math.sin(t) * 0.4})`;
+      ctx.lineWidth = 3; ctx.strokeRect(px + 1.5, py + 1.5, cell - 3, cell - 3);
     }
+  }
+
+  function drawBlock(px, py, colorKey) {
+    const pad = Math.max(1, cell * 0.04);
+    const s = cell - pad * 2, x = px + pad, y = py + pad, r = Math.max(2, s * 0.12);
+    ctx.fillStyle = COLORS[colorKey]; rrect(x, y, s, s, r); ctx.fill();
+    ctx.fillStyle = "rgba(0,0,0,.16)"; rrect(x, y + s * 0.74, s, s * 0.26, r); ctx.fill();
+    ctx.fillStyle = "rgba(255,255,255,.22)"; rrect(x + s * 0.1, y + s * 0.1, s * 0.8, s * 0.16, r * 0.6); ctx.fill();
+    ctx.strokeStyle = "rgba(0,0,0,.8)"; ctx.lineWidth = Math.max(1.5, s * 0.055); rrect(x, y, s, s, r); ctx.stroke();
+  }
+
+  function drawCube(px, py, colorKey, isHead) {
+    const pad = Math.max(1, cell * 0.06), s = cell - pad * 2;
+    const x = px + pad, y = py + pad, r = Math.max(3, s * 0.18);
+    ctx.fillStyle = COLORS[colorKey]; rrect(x, y, s, s, r); ctx.fill();
+    ctx.fillStyle = "rgba(0,0,0,.18)"; rrect(x, y + s * 0.72, s, s * 0.28, r); ctx.fill();
+    ctx.strokeStyle = "rgba(0,0,0,.5)"; ctx.lineWidth = Math.max(1.5, s * 0.07); rrect(x, y, s, s, r); ctx.stroke();
+    // eyes
+    const ew = s * 0.22, eh = s * 0.28, ey = y + s * 0.24;
+    const ex1 = x + s * 0.2, ex2 = x + s * 0.58;
+    ctx.fillStyle = "#fff";
+    rrect(ex1, ey, ew, eh, ew * 0.35); ctx.fill();
+    rrect(ex2, ey, ew, eh, ew * 0.35); ctx.fill();
+    ctx.fillStyle = "#111";
+    let lx = 0, ly = 0;
+    if (isHead) { lx = DIRS[dir].x * ew * 0.22; ly = DIRS[dir].y * eh * 0.2; }
+    const pr = ew * 0.42;
+    ctx.beginPath(); ctx.arc(ex1 + ew/2 + lx, ey + eh/2 + ly, pr, 0, 7); ctx.fill();
+    ctx.beginPath(); ctx.arc(ex2 + ew/2 + lx, ey + eh/2 + ly, pr, 0, 7); ctx.fill();
+  }
+
+  function drawSpike(px, py) {
+    const cx = px + cell/2, cy = py + cell/2, s = cell * 0.42;
+    ctx.fillStyle = "#8e24aa"; ctx.strokeStyle = "#4a148c"; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(cx, cy - s); ctx.lineTo(cx + s, cy + s); ctx.lineTo(cx - s, cy + s); ctx.closePath();
+    ctx.fill(); ctx.stroke();
+    ctx.fillStyle = "rgba(255,255,255,.5)";
+    ctx.beginPath(); ctx.moveTo(cx, cy - s*0.5); ctx.lineTo(cx + s*0.3, cy + s*0.3); ctx.lineTo(cx - s*0.3, cy + s*0.3); ctx.closePath(); ctx.fill();
   }
 
   // ---------- loop ----------
@@ -568,7 +544,7 @@
   el("nextBtn").addEventListener("click", () => { level++; beginLevel(); });
 
   resize();
-  buildLevel(1);           // draw something behind the start screen
+  buildLevel(1);
   running = false;
   requestAnimationFrame(loop);
 })();
